@@ -1,0 +1,38 @@
+Building API server...
+
+> @workspace/api-server@0.0.0 build /home/runner/workspace/artifacts/api-server
+> node ./build.mjs
+
+
+  [37mdist/[0m[1mindex.mjs[0m                       [33m4.4mb ⚠️[0m
+  [37mdist/[0m[1mpino-worker.mjs[0m               [36m153.4kb[0m
+  [37mdist/[0m[1mpino-file.mjs[0m                 [36m142.1kb[0m
+  [37mdist/[0m[1mpino-pretty.mjs[0m               [36m114.6kb[0m
+  [37mdist/[0m[1mthread-stream-worker.mjs[0m        [36m7.3kb[0m
+  [37mdist/[0m[1mindex.mjs.map[0m                   [36m7.4mb[0m
+  [37mdist/[0m[1mpino-worker.mjs.map[0m           [36m256.9kb[0m
+  [37mdist/[0m[1mpino-file.mjs.map[0m             [36m229.0kb[0m
+  [37mdist/[0m[1mpino-pretty.mjs.map[0m           [36m204.0kb[0m
+  [37mdist/[0m[1mthread-stream-worker.mjs.map[0m   [36m12.0kb[0m
+
+⚡ [32mDone in 593ms[0m
+Starting API server on port 8000...
+Starting frontend on port 5000...
+
+> @workspace/barcode-app@0.0.0 dev /home/runner/workspace/artifacts/barcode-app
+> vite --config vite.config.ts --host 0.0.0.0
+
+
+> @workspace/api-server@0.0.0 start /home/runner/workspace/artifacts/api-server
+> node --enable-source-maps ./dist/index.mjs
+
+[22:42:00.370] [32mINFO[39m (2724): [36mServer listening[39m
+    [35mport[39m: 8000
+[replit-cartographer] Loaded @theme tokens from /home/runner/workspace/artifacts/barcode-app/src/index.css
+
+  [32m[1mVITE[22m v7.3.6[39m  [2mready in [0m[1m448[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5000[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://172.24.0.2:[1m5000[22m/[39m
+[2m10:42:07 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32m✨ new dependencies optimized: [33mreact-dom/client, wouter, @tanstack/react-query, lucide-react, @radix-ui/react-tooltip, @radix-ui/react-slot, class-variance-authority, zod, @zxing/library, clsx, tailwind-merge, @radix-ui/react-label, @radix-ui/react-toast, @radix-ui/react-dialog, @radix-ui/react-switch, @radix-ui/react-select[32m[39m
+[2m10:42:07 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32m✨ optimized dependencies changed. reloading[39m

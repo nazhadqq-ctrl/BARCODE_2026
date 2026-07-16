@@ -1,0 +1,7 @@
+node_modules/
+artifacts/*/node_modules/
+.cache/
+.agents/
+dist/
+artifacts/*/dist/
+build/
