@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:match*",
+      "destination": "https://barcode-app-ix4t.onrender.com/api/:match*"
+    }
+  ]
+}
