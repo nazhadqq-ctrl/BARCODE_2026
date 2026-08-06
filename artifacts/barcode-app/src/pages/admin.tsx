@@ -4,7 +4,7 @@ import {
   getSession, getSqlConfig, saveSqlConfig,
   getScannerSettings, saveScannerSettings,
   getSessionTimeoutSettings, saveSessionTimeoutSettings,
-  SqlConfig,
+  SqlConfig, trimSqlConfig,
 } from "@/lib/store";
 import { useTestSqlConnection, useRunBarcodeQuery } from "@workspace/api-client-react";
 import type { ConnectionTestResult } from "@workspace/api-client-react";
@@ -28,13 +28,13 @@ import {
 
 type Tab = "search" | "sql" | "admin" | "users" | "scanner";
 
-const BG_PAGE   = "#0d1117";
-const BG_CARD   = "#161b27";
-const BG_INPUT  = "#1e2a3a";
-const BG_TAB    = "#1e2a3a";
-const TAB_ACTIVE = "#2563eb";
-const BTN_GREEN = "#16a34a";
-const BTN_BLUE  = "#2563eb";
+const BG_PAGE   = "hsl(var(--background))";
+const BG_CARD   = "hsl(var(--card))";
+const BG_INPUT  = "hsl(var(--input))";
+const BG_TAB    = "hsl(var(--muted))";
+const TAB_ACTIVE = "hsl(var(--primary))";
+const BTN_GREEN = "hsl(var(--primary))";
+const BTN_BLUE  = "hsl(var(--primary))";
 
 interface SqlUser {
   id: number;
@@ -45,7 +45,7 @@ interface SqlUser {
 }
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
-  return <div className="text-[#8b9ab2] text-sm mb-1">{children}</div>;
+  return <div className="text-muted-foreground text-sm mb-1">{children}</div>;
 }
 
 function DarkInput({
@@ -67,15 +67,15 @@ function DarkInput({
         type={isPassword && !show ? "password" : "text"}
         placeholder={placeholder}
         autoComplete={autoComplete}
-        className="w-full rounded-xl px-4 py-3.5 text-white text-base outline-none
-                   border border-transparent focus:border-blue-500 transition-colors"
+        className="w-full rounded-xl px-4 py-3.5 text-foreground text-base outline-none
+                   border border-border focus:border-primary transition-colors"
         style={{ background: BG_INPUT }}
       />
       {isPassword && (
         <button
           type="button"
           tabIndex={-1}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8b9ab2] hover:text-white"
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
           onClick={() => setShow(s => !s)}
         >
           {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -93,7 +93,7 @@ function GreenBtn({ onClick, disabled, children }: {
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="flex items-center gap-2 px-5 py-3 rounded-xl font-semibold text-white text-sm
+      className="flex items-center gap-2 px-5 py-3 rounded-xl font-semibold text-foreground text-sm
                  transition-opacity disabled:opacity-50 shrink-0"
       style={{ background: BTN_GREEN }}
     >
@@ -113,7 +113,7 @@ function BlueBtn({ type = "button", onClick, disabled, children }: {
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className="flex items-center gap-2 px-5 py-3 rounded-xl font-semibold text-white text-sm shrink-0 disabled:opacity-50"
+      className="flex items-center gap-2 px-5 py-3 rounded-xl font-semibold text-foreground text-sm shrink-0 disabled:opacity-50"
       style={{ background: BTN_BLUE }}
     >
       {children}
@@ -136,10 +136,11 @@ export function AdminPage() {
 
   const checkDb = useCallback((overrideConfig?: SqlConfig) => {
     const cfg = overrideConfig ?? getSqlConfig();
-    if (!cfg.server || !cfg.database) { setDbStatus("unknown"); return; }
+    const cleanCfg = trimSqlConfig(cfg);
+    if (!cleanCfg.server || !cleanCfg.database) { setDbStatus("unknown"); return; }
     setDbStatus("checking");
     testConn.mutate(
-      { data: { ...cfg, port: cfg.port ?? 1433 } },
+      { data: { ...cleanCfg, port: cleanCfg.port ?? 1433 } },
       {
         onSuccess: (d: ConnectionTestResult) => setDbStatus(d.success ? "connected" : "offline"),
         onError:   ()                         => setDbStatus("offline"),
@@ -168,15 +169,15 @@ export function AdminPage() {
 
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-white">Admin Panel</h1>
-            <p className="text-[#8b9ab2] mt-1 text-sm">
+            <h1 className="text-3xl font-bold text-foreground">Admin Panel</h1>
+            <p className="text-muted-foreground mt-1 text-sm">
               Configure SQL Server connection and manage users
             </p>
           </div>
           <button
             onClick={() => { localStorage.removeItem("ba_session"); navigate("/login"); }}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[#8b9ab2]
-                       hover:text-white hover:bg-white/10 transition-colors text-sm"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-muted-foreground
+                       hover:text-foreground hover:hover:bg-muted transition-colors text-sm"
           >
             <LogOut className="w-4 h-4" /> Go to Login
           </button>
@@ -190,7 +191,7 @@ export function AdminPage() {
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all"
               style={{
                 background: activeTab === id ? TAB_ACTIVE : BG_TAB,
-                color: activeTab === id ? "#fff" : "#8b9ab2",
+                color: activeTab === id ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",
               }}
             >
               <Icon className="w-4 h-4" />
@@ -241,11 +242,12 @@ function SearchTab() {
     if (e) e.preventDefault();
     const code = explicit ?? barcode;
     if (!code) return;
-    if (!sqlConfig.server || !sqlConfig.database) {
+    const cleanConfig = trimSqlConfig(sqlConfig);
+    if (!cleanConfig.server || !cleanConfig.database) {
       toast({ title: "Configuration Missing", description: "Save SQL Server settings first.", variant: "destructive" });
       return;
     }
-    runQuery.mutate({ data: { connection: sqlConfig, barcode: code } });
+    runQuery.mutate({ data: { connection: cleanConfig, barcode: code.trim() } });
   };
 
   const handleDecode = (text: string) => {
@@ -258,16 +260,16 @@ function SearchTab() {
       <div className="flex flex-col gap-4">
         <Button
           onClick={() => setScannerOpen(true)}
-          className="w-full h-28 text-xl font-bold rounded-xl shadow-lg border-2 border-primary/20 flex flex-col gap-2"
+          className="w-full h-28 text-xl font-bold rounded-xl shadow-sm border-2 border-border flex flex-col gap-2"
         >
           <ScanLine className="w-9 h-9" />
           SCAN BARCODE
         </Button>
 
         <div className="relative flex items-center">
-          <div className="flex-grow border-t border-white/10" />
-          <span className="flex-shrink-0 mx-4 text-[#8b9ab2] text-sm font-medium uppercase tracking-wider">or manually enter</span>
-          <div className="flex-grow border-t border-white/10" />
+          <div className="flex-grow border-t border-border" />
+          <span className="flex-shrink-0 mx-4 text-muted-foreground text-sm font-medium uppercase tracking-wider">or manually enter</span>
+          <div className="flex-grow border-t border-border" />
         </div>
 
         <form onSubmit={handleSearch} className="flex gap-2">
@@ -275,13 +277,13 @@ function SearchTab() {
             value={barcode}
             onChange={e => setBarcode(e.target.value)}
             placeholder="Enter barcode..."
-            className="flex-1 rounded-xl px-4 py-3.5 text-white text-base outline-none border border-transparent focus:border-blue-500 transition-colors"
+            className="flex-1 rounded-xl px-4 py-3.5 text-foreground text-base outline-none border border-border focus:border-primary transition-colors"
             style={{ background: BG_INPUT }}
           />
           <button
             type="submit"
             disabled={runQuery.isPending}
-            className="flex items-center justify-center w-14 h-14 rounded-xl text-white shrink-0 disabled:opacity-50"
+            className="flex items-center justify-center w-14 h-14 rounded-xl text-foreground shrink-0 disabled:opacity-50"
             style={{ background: BTN_BLUE }}
           >
             <Search className="w-5 h-5" />
@@ -309,24 +311,24 @@ function SearchTab() {
         )}
 
         {runQuery.isSuccess && !runQuery.data.found && (
-          <div className="rounded-xl px-4 py-8 text-center text-[#8b9ab2] font-medium border border-dashed border-white/20"
+          <div className="rounded-xl px-4 py-8 text-center text-muted-foreground font-medium border border-dashed border-border"
                style={{ background: BG_INPUT }}>
             No results found
           </div>
         )}
 
         {runQuery.isSuccess && runQuery.data.found && runQuery.data.rows.map((row, i) => (
-          <div key={i} className="rounded-xl overflow-hidden border border-white/10">
+          <div key={i} className="rounded-xl overflow-hidden border border-border">
             <div className="px-4 py-2.5 flex justify-between items-center font-bold text-sm"
                  style={{ background: BG_PAGE }}>
-              <span className="text-[#8b9ab2]">Result {i + 1}</span>
+              <span className="text-muted-foreground">Result {i + 1}</span>
               <span className="text-blue-400 font-mono">{barcode}</span>
             </div>
             <div className="p-4 flex flex-col gap-3" style={{ background: BG_INPUT }}>
               {Object.entries(row).map(([key, value]) => (
-                <div key={key} className="flex flex-col border-b border-white/10 pb-2 last:border-0 last:pb-0">
-                  <span className="text-xs text-[#8b9ab2] uppercase tracking-wider font-semibold">{key}</span>
-                  <span className="text-white font-medium break-words mt-0.5">{String(value)}</span>
+                <div key={key} className="flex flex-col border-b border-border pb-2 last:border-0 last:pb-0">
+                  <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">{key}</span>
+                  <span className="text-foreground font-medium break-words mt-0.5">{String(value)}</span>
                 </div>
               ))}
             </div>
@@ -352,7 +354,9 @@ function SqlTab({
   const set = (patch: Partial<SqlConfig>) => setConfig(c => ({ ...c, ...patch }));
 
   const handleTest = () => {
-    const cfg = { ...config, port: Number(config.port) || 1433 };
+    const cleanConfig = trimSqlConfig(config);
+    setConfig(cleanConfig);
+    const cfg = { ...cleanConfig, port: Number(cleanConfig.port) || 1433 };
     testConn.mutate({ data: cfg }, {
       onSuccess: (data: ConnectionTestResult) => {
         if (data.success) {
@@ -372,7 +376,9 @@ function SqlTab({
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    const cfg = { ...config, port: Number(config.port) || 1433 };
+    const cleanConfig = trimSqlConfig(config);
+    setConfig(cleanConfig);
+    const cfg = { ...cleanConfig, port: Number(cleanConfig.port) || 1433 };
     saveSqlConfig(cfg);
     toast({ title: "Saved", description: "Configuration saved to this device." });
     onRecheck(cfg);
@@ -380,7 +386,7 @@ function SqlTab({
 
   // ── Status colours ───────────────────────────────────────────────────────
   const statusMeta = {
-    unknown:   { border: "border-white/10",       bg: "rgba(30,42,58,0.6)",    icon: <Database  className="w-4 h-4 text-[#8b9ab2]" />,              text: "text-[#8b9ab2]",  label: "Not configured — enter details below" },
+    unknown:   { border: "border-border",       bg: "rgba(30,42,58,0.6)",    icon: <Database  className="w-4 h-4 text-muted-foreground" />,              text: "text-muted-foreground",  label: "Not configured — enter details below" },
     checking:  { border: "border-yellow-500/30",  bg: "rgba(234,179,8,0.08)", icon: <RefreshCw className="w-4 h-4 text-yellow-400 animate-spin" />,  text: "text-yellow-300", label: "Checking database connection…" },
     connected: { border: "border-green-500/30",   bg: "rgba(34,197,94,0.08)", icon: <CheckCircle className="w-4 h-4 text-green-400" />,              text: "text-green-300",  label: "Database Connected" },
     offline:   { border: "border-red-500/30",     bg: "rgba(239,68,68,0.08)", icon: <AlertTriangle className="w-4 h-4 text-red-400" />,              text: "text-red-300",    label: "Database Offline" },
@@ -388,7 +394,7 @@ function SqlTab({
 
   return (
     <form onSubmit={handleSave} className="flex flex-col gap-5">
-      <h2 className="text-xl font-bold text-white">SQL Server Configuration</h2>
+      <h2 className="text-xl font-bold text-foreground">SQL Server Configuration</h2>
 
       {/* ── Live DB status banner ─────────────────────────────────────── */}
       <div
@@ -404,7 +410,7 @@ function SqlTab({
             type="button"
             onClick={() => onRecheck(config)}
             title="Re-check connection"
-            className="text-[#8b9ab2] hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10 shrink-0"
+            className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-lg hover:hover:bg-muted shrink-0"
           >
             <RefreshCw className="w-3.5 h-3.5" />
           </button>
@@ -438,8 +444,8 @@ function SqlTab({
           value={config.port || ""}
           onChange={e => set({ port: parseInt(e.target.value) || 1433 })}
           placeholder="1433"
-          className="w-full rounded-xl px-4 py-3.5 text-white text-base outline-none
-                     border border-transparent focus:border-blue-500 transition-colors"
+          className="w-full rounded-xl px-4 py-3.5 text-foreground text-base outline-none
+                     border border-border focus:border-primary transition-colors"
           style={{ background: BG_INPUT }}
         />
       </div>
@@ -449,8 +455,8 @@ function SqlTab({
         style={{ background: BG_INPUT }}
       >
         <div>
-          <div className="text-white text-sm font-medium">Windows Authentication</div>
-          <div className="text-[#8b9ab2] text-xs mt-0.5">Use Windows login instead of SQL credentials</div>
+          <div className="text-foreground text-sm font-medium">Windows Authentication</div>
+          <div className="text-muted-foreground text-xs mt-0.5">Use Windows login instead of SQL credentials</div>
         </div>
         <Switch
           checked={config.windowsAuth ?? false}
@@ -489,20 +495,20 @@ function SqlTab({
 function AdminTab({ session }: { session: { username: string; role: string } | null }) {
   return (
     <div className="flex flex-col gap-5">
-      <h2 className="text-xl font-bold text-white">Admin Setup</h2>
+      <h2 className="text-xl font-bold text-foreground">Admin Setup</h2>
       {session && (
         <div className="rounded-xl px-4 py-4 flex flex-col gap-1" style={{ background: BG_INPUT }}>
-          <div className="text-[#8b9ab2] text-xs uppercase tracking-wider font-semibold mb-1">Logged in as</div>
-          <div className="text-white text-lg font-bold">{session.username}</div>
+          <div className="text-muted-foreground text-xs uppercase tracking-wider font-semibold mb-1">Logged in as</div>
+          <div className="text-foreground text-lg font-bold">{session.username}</div>
           <div className="flex items-center gap-1.5 mt-1">
             <ShieldAlert className="w-3.5 h-3.5 text-blue-400" />
             <span className="text-blue-400 text-sm font-semibold uppercase">{session.role}</span>
           </div>
         </div>
       )}
-      <div className="rounded-xl px-4 py-3 text-sm text-[#8b9ab2] border border-white/10" style={{ background: BG_PAGE }}>
-        Users are managed via the <span className="text-white font-medium">USERS</span> table in your SQL Server database.
-        Use the <span className="text-white font-medium">User Management</span> tab to add, enable, or disable users.
+      <div className="rounded-xl px-4 py-3 text-sm text-muted-foreground border border-border" style={{ background: BG_PAGE }}>
+        Users are managed via the <span className="text-foreground font-medium">USERS</span> table in your SQL Server database.
+        Use the <span className="text-foreground font-medium">User Management</span> tab to add, enable, or disable users.
       </div>
     </div>
   );
@@ -542,8 +548,8 @@ function ScannerTab({ toast }: { toast: ReturnType<typeof useToast>["toast"] }) 
 
   return (
     <div className="flex flex-col gap-5">
-      <h2 className="text-xl font-bold text-white">Scanner & Session Settings</h2>
-      <p className="text-[#8b9ab2] text-sm -mt-2">
+      <h2 className="text-xl font-bold text-foreground">Scanner & Session Settings</h2>
+      <p className="text-muted-foreground text-sm -mt-2">
         Configure scanner behaviour and automatic logout for inactivity.
       </p>
 
@@ -552,11 +558,11 @@ function ScannerTab({ toast }: { toast: ReturnType<typeof useToast>["toast"] }) 
         style={{ background: BG_INPUT }}
       >
         <div>
-          <div className="text-white text-sm font-medium flex items-center gap-2">
+          <div className="text-foreground text-sm font-medium flex items-center gap-2">
             <Zap className="w-4 h-4 text-yellow-400" />
             Auto Flashlight
           </div>
-          <div className="text-[#8b9ab2] text-xs mt-0.5">
+          <div className="text-muted-foreground text-xs mt-0.5">
             Automatically turn on the torch every time the scanner opens
           </div>
         </div>
@@ -566,14 +572,14 @@ function ScannerTab({ toast }: { toast: ReturnType<typeof useToast>["toast"] }) 
         />
       </div>
 
-      <div className="rounded-xl px-4 py-3 text-xs text-[#8b9ab2] border border-white/10" style={{ background: BG_PAGE }}>
+      <div className="rounded-xl px-4 py-3 text-xs text-muted-foreground border border-border" style={{ background: BG_PAGE }}>
         💡 Note: Flashlight is only available on devices that support torch mode (most Android phones). It will be ignored silently on unsupported devices.
       </div>
 
-      <div className="border-t border-white/10 pt-5 flex flex-col gap-3">
+      <div className="border-t border-border pt-5 flex flex-col gap-3">
         <div>
-          <div className="text-white text-sm font-medium mb-0.5">Auto Logout (Inactivity Timeout)</div>
-          <div className="text-[#8b9ab2] text-xs">
+          <div className="text-foreground text-sm font-medium mb-0.5">Auto Logout (Inactivity Timeout)</div>
+          <div className="text-muted-foreground text-xs">
             Automatically log users out after a period of no activity. A 60-second warning appears before logout.
           </div>
         </div>
@@ -582,7 +588,7 @@ function ScannerTab({ toast }: { toast: ReturnType<typeof useToast>["toast"] }) 
           onValueChange={handleTimeoutChange}
         >
           <SelectTrigger
-            className="rounded-xl border-transparent text-white"
+            className="rounded-xl border-border text-foreground"
             style={{ background: BG_INPUT }}
           >
             <SelectValue />
@@ -617,12 +623,12 @@ function UsersTab({
   const [formPermetion, setFormPermetion] = useState("user");
   const [formOnOff, setFormOnOff] = useState<"yes" | "no">("yes");
 
-  const sqlConfig = getSqlConfig();
+  const sqlConfig = trimSqlConfig(getSqlConfig());
   const isConfigured = !!(sqlConfig.server && sqlConfig.database);
 
   const loadUsers = useCallback(async () => {
     if (!isConfigured) return;
-    const currentConfig = getSqlConfig();
+    const currentConfig = trimSqlConfig(getSqlConfig());
     setLoading(true);
     try {
       const res = await fetch("/api/users/list", {
@@ -662,7 +668,7 @@ function UsersTab({
       const res = await fetch("/api/users/add", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ connection: sqlConfig, user: { User_: formName.trim(), password: formPassword, permetion: formPermetion, on_off: formOnOff } }),
+        body: JSON.stringify({ connection: sqlConfig, user: { User_: formName.trim(), password: formPassword.trim(), permetion: formPermetion, on_off: formOnOff } }),
       });
       const data = await res.json() as { success?: boolean; error?: string };
       if (!res.ok) throw new Error(data.error ?? "Failed to add");
@@ -681,7 +687,7 @@ function UsersTab({
       const res = await fetch(`/api/users/${editUser.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ connection: sqlConfig, user: { User_: formName.trim(), password: formPassword, permetion: formPermetion, on_off: formOnOff } }),
+        body: JSON.stringify({ connection: sqlConfig, user: { User_: formName.trim(), password: formPassword.trim(), permetion: formPermetion, on_off: formOnOff } }),
       });
       const data = await res.json() as { success?: boolean; error?: string };
       if (!res.ok) throw new Error(data.error ?? "Failed to update");
@@ -780,8 +786,8 @@ function UsersTab({
   if (!isConfigured) {
     return (
       <div className="flex flex-col gap-4">
-        <h2 className="text-xl font-bold text-white">User Management</h2>
-        <div className="rounded-xl px-4 py-6 text-center text-[#8b9ab2]" style={{ background: BG_INPUT }}>
+        <h2 className="text-xl font-bold text-foreground">User Management</h2>
+        <div className="rounded-xl px-4 py-6 text-center text-muted-foreground" style={{ background: BG_INPUT }}>
           Configure SQL Server connection first, then come back to manage users.
         </div>
       </div>
@@ -791,13 +797,13 @@ function UsersTab({
   return (
     <div className="flex flex-col gap-5">
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h2 className="text-xl font-bold text-white">User Management</h2>
+        <h2 className="text-xl font-bold text-foreground">User Management</h2>
         <div className="flex gap-2">
           <button
             onClick={loadUsers}
             disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[#8b9ab2]
-                       hover:text-white hover:bg-white/10 transition-colors text-sm disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-muted-foreground
+                       hover:text-foreground hover:hover:bg-muted transition-colors text-sm disabled:opacity-50"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           </button>
@@ -814,35 +820,35 @@ function UsersTab({
         </div>
       </div>
 
-      <div className="text-xs text-[#8b9ab2] -mt-2">
-        Table: <span className="text-white font-mono">USERS</span> · 
-        Login is controlled by <span className="text-white font-mono">on_off</span> = <span className="text-green-400">yes</span> / <span className="text-red-400">no</span> · 
-        Role from <span className="text-white font-mono">permetion</span>
+      <div className="text-xs text-muted-foreground -mt-2">
+        Table: <span className="text-foreground font-mono">USERS</span> · 
+        Login is controlled by <span className="text-foreground font-mono">on_off</span> = <span className="text-green-400">yes</span> / <span className="text-red-400">no</span> · 
+        Role from <span className="text-foreground font-mono">permetion</span>
       </div>
 
       <div className="rounded-xl overflow-hidden" style={{ background: BG_INPUT }}>
         {loading && users.length === 0 ? (
-          <div className="px-4 py-8 text-center text-[#8b9ab2]">Loading...</div>
+          <div className="px-4 py-8 text-center text-muted-foreground">Loading...</div>
         ) : (
           <table className="w-full text-sm">
             <thead>
               <tr style={{ background: BG_PAGE }}>
-                <th className="text-left px-4 py-3 text-[#8b9ab2] font-medium">Username</th>
-                <th className="text-left px-4 py-3 text-[#8b9ab2] font-medium">Permission</th>
-                <th className="text-center px-4 py-3 text-[#8b9ab2] font-medium">Active</th>
-                <th className="text-right px-4 py-3 text-[#8b9ab2] font-medium">Actions</th>
+                <th className="text-left px-4 py-3 text-muted-foreground font-medium">Username</th>
+                <th className="text-left px-4 py-3 text-muted-foreground font-medium">Permission</th>
+                <th className="text-center px-4 py-3 text-muted-foreground font-medium">Active</th>
+                <th className="text-right px-4 py-3 text-muted-foreground font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
               {users.map((user, i) => (
                 <tr key={user.id} style={{ borderTop: i > 0 ? `1px solid ${BG_PAGE}` : undefined }}>
-                  <td className="px-4 py-3 text-white font-medium">{user.User_}</td>
+                  <td className="px-4 py-3 text-foreground font-medium">{user.User_}</td>
                   <td className="px-4 py-3">
                     {(user.permetion ?? "").toLowerCase() === "admin"
-                      ? <span className="inline-flex items-center gap-1 bg-blue-600 text-white px-2 py-0.5 rounded text-xs font-bold">
+                      ? <span className="inline-flex items-center gap-1 bg-blue-600 text-foreground px-2 py-0.5 rounded text-xs font-bold">
                           <ShieldAlert className="w-3 h-3" />ADMIN
                         </span>
-                      : <span className="text-[#8b9ab2]">{user.permetion || "user"}</span>}
+                      : <span className="text-muted-foreground">{user.permetion || "user"}</span>}
                   </td>
                   <td className="px-4 py-3 text-center">
                     <button onClick={() => handleToggleOnOff(user)} className="inline-flex items-center">
@@ -861,7 +867,7 @@ function UsersTab({
                         <DialogTrigger asChild>
                           <button
                             onClick={() => openEdit(user)}
-                            className="p-1.5 rounded-lg text-[#8b9ab2] hover:text-white hover:bg-white/10 transition-colors"
+                            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:hover:bg-muted transition-colors"
                           >
                             <Pencil className="w-4 h-4" />
                           </button>
@@ -883,7 +889,7 @@ function UsersTab({
                 </tr>
               ))}
               {users.length === 0 && !loading && (
-                <tr><td colSpan={4} className="px-4 py-6 text-center text-[#8b9ab2]">No users found in USERS table</td></tr>
+                <tr><td colSpan={4} className="px-4 py-6 text-center text-muted-foreground">No users found in USERS table</td></tr>
               )}
             </tbody>
           </table>

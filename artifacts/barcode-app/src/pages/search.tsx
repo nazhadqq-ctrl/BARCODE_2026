@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { getSession, getSqlConfig } from "@/lib/store";
+import { getSession, getSqlConfig, trimSqlConfig } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRunBarcodeQuery } from "@workspace/api-client-react";
@@ -16,7 +16,7 @@ export function SearchPage() {
 
   const [barcode, setBarcode] = useState("");
   const [scannerOpen, setScannerOpen] = useState(false);
-  const sqlConfig = getSqlConfig();
+  const sqlConfig = trimSqlConfig(getSqlConfig());
 
   const runQuery = useRunBarcodeQuery();
 
@@ -55,7 +55,7 @@ export function SearchPage() {
     runQuery.mutate({
       data: {
         connection: sqlConfig,
-        barcode: code
+        barcode: code.trim()
       }
     });
   };
@@ -70,7 +70,7 @@ export function SearchPage() {
       <div className="flex flex-col gap-4">
         <Button
           onClick={() => setScannerOpen(true)}
-          className="w-full h-32 text-xl font-bold rounded-xl shadow-lg border-2 border-primary/20 flex flex-col gap-2"
+          className="w-full h-32 text-xl font-bold rounded-xl shadow-sm border-2 border-border flex flex-col gap-2"
         >
           <ScanLine className="w-10 h-10" />
           SCAN BARCODE
@@ -125,7 +125,7 @@ export function SearchPage() {
         )}
 
         {runQuery.isSuccess && runQuery.data.found && runQuery.data.rows.map((row, index) => (
-          <Card key={index} className="overflow-hidden border-2 shadow-md">
+          <Card key={index} className="overflow-hidden border-2 shadow-sm">
             <CardContent className="p-0">
               <div className="bg-secondary text-secondary-foreground p-3 font-bold flex justify-between items-center">
                 <span>Result {index + 1}</span>

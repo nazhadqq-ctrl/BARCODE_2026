@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import logo from "@/assets/logo.png";
-import { getSession, saveSession, getSqlConfig } from "@/lib/store";
+import { getSession, saveSession, getSqlConfig, trimSqlConfig } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,7 +26,7 @@ export function LoginPage() {
     e.preventDefault();
     if (!username.trim()) return;
 
-    const sqlConfig = getSqlConfig();
+    const sqlConfig = trimSqlConfig(getSqlConfig());
     if (!sqlConfig.server || !sqlConfig.database) {
       toast({
         title: "Not Configured",
@@ -41,7 +41,7 @@ export function LoginPage() {
       const res = await fetch("/api/users/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ connection: sqlConfig, username: username.trim(), password }),
+        body: JSON.stringify({ connection: sqlConfig, username: username.trim(), password: password.trim() }),
       });
       const data = await res.json() as {
         success?: boolean;
@@ -80,7 +80,7 @@ export function LoginPage() {
       <div className="w-full max-w-sm flex flex-col items-center gap-8">
 
         <div className="flex flex-col items-center gap-4 text-center">
-          <div className="w-24 h-24 rounded-2xl overflow-hidden shadow-lg transform rotate-3">
+          <div className="w-24 h-24 rounded-2xl overflow-hidden shadow-sm transform rotate-3">
             <img src={logo} alt="Nazhad inspection System" className="w-full h-full object-cover" />
           </div>
           <div>
@@ -89,7 +89,7 @@ export function LoginPage() {
           </div>
         </div>
 
-        <form onSubmit={handleLogin} className="w-full flex flex-col gap-5 bg-card p-6 sm:p-8 rounded-xl shadow-md border">
+        <form onSubmit={handleLogin} className="w-full flex flex-col gap-5 bg-card p-6 sm:p-8 rounded-xl shadow-sm border">
           <div className="flex flex-col gap-2">
             <Label className="text-sm uppercase tracking-wider font-bold text-muted-foreground">Username</Label>
             <Input

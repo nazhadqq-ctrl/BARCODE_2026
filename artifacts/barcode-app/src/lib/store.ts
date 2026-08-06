@@ -92,8 +92,18 @@ export const getSqlConfig = (): SqlConfig => {
   }
 };
 
+export const trimSqlConfig = (config: SqlConfig): SqlConfig => {
+  return {
+    ...config,
+    server: config.server?.trim() ?? "",
+    database: config.database?.trim() ?? "",
+    user: config.user?.trim() ?? "",
+    password: config.password?.trim() ?? "",
+  };
+};
+
 export const saveSqlConfig = (config: SqlConfig) => {
-  localStorage.setItem("ba_sql_config", JSON.stringify(config));
+  localStorage.setItem("ba_sql_config", JSON.stringify(trimSqlConfig(config)));
 };
 
 export const getScannerSettings = () => {
