@@ -124,7 +124,7 @@ export function SearchPage() {
           </Card>
         )}
 
-        {runQuery.isSuccess && runQuery.data.found && runQuery.data.rows.map((row, index) => (
+        {runQuery.isSuccess && runQuery.data.found && runQuery.data.rows.map((row: any, index: number) => (
           <Card key={index} className="overflow-hidden border shadow-sm">
             <CardContent className="p-0">
               <div className="bg-secondary text-secondary-foreground p-3 font-bold flex justify-between items-center">

@@ -29,11 +29,6 @@ import {
 
 type Tab = "search" | "sql" | "admin" | "users" | "scanner";
 
-const BG_PAGE   = "hsl(var(--background))";
-const BG_CARD   = "hsl(var(--card))";
-const BG_INPUT  = "hsl(var(--input))";
-const BG_TAB    = "hsl(var(--muted))";
-const TAB_ACTIVE = "hsl(var(--primary))";
 const BTN_GREEN = "hsl(var(--primary))";
 const BTN_BLUE  = "hsl(var(--primary))";
 
@@ -162,7 +157,7 @@ export function AdminPage() {
   ];
 
   return (
-    <div className="min-h-screen w-full px-4 py-8 sm:px-8" style={{ background: BG_PAGE }}>
+    <div className="min-h-screen w-full px-4 py-8 sm:px-8" >
       <div className="max-w-3xl mx-auto flex flex-col gap-6">
 
         <div className="flex items-start justify-between gap-4">
@@ -190,9 +185,8 @@ export function AdminPage() {
             <button
               key={id}
               onClick={() => setActiveTab(id)}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all"
+              className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium text-sm transition-all ${activeTab === id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
               style={{
-                background: activeTab === id ? TAB_ACTIVE : BG_TAB,
                 color: activeTab === id ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",
               }}
             >
@@ -219,7 +213,7 @@ export function AdminPage() {
         {activeTab === "search"
           ? <SearchTab />
           : (
-            <div className="rounded-2xl p-6 sm:p-8" style={{ background: BG_CARD }}>
+            <div className="rounded-lg p-6 sm:p-8 bg-card" >
               {activeTab === "sql"     && <SqlTab     toast={toast} testConn={testConn} dbStatus={dbStatus} onRecheck={checkDb} />}
               {activeTab === "admin"   && <AdminTab   session={session} />}
               {activeTab === "users"   && <UsersTab   toast={toast} session={session} />}
@@ -279,13 +273,13 @@ function SearchTab() {
             value={barcode}
             onChange={e => setBarcode(e.target.value)}
             placeholder="Enter barcode..."
-            className="flex-1 rounded-xl px-4 py-3.5 text-foreground text-base outline-none border border-border focus:border-primary transition-colors"
-            style={{ background: BG_INPUT }}
+            className="flex-1 rounded-md px-4 py-3.5 text-foreground text-base outline-none border border-border focus:border-primary transition-colors"
+            
           />
           <button
             type="submit"
             disabled={runQuery.isPending}
-            className="flex items-center justify-center w-14 h-14 rounded-xl text-foreground shrink-0 disabled:opacity-50"
+            className="flex items-center justify-center w-14 h-14 rounded-md text-foreground shrink-0 disabled:opacity-50"
             style={{ background: BTN_BLUE }}
           >
             <Search className="w-5 h-5" />
@@ -301,7 +295,7 @@ function SearchTab() {
         )}
 
         {runQuery.isError && (
-          <div className="rounded-xl px-4 py-4 flex flex-col items-center gap-2 text-center border border-red-500/30"
+          <div className="rounded-md px-4 py-4 flex flex-col items-center gap-2 text-center border border-red-500/30"
                style={{ background: "rgba(239,68,68,0.1)" }}>
             <AlertTriangle className="w-8 h-8 text-red-400" />
             <p className="text-red-300 font-medium text-sm">
@@ -318,14 +312,14 @@ function SearchTab() {
           </div>
         )}
 
-        {runQuery.isSuccess && runQuery.data.found && runQuery.data.rows.map((row, i) => (
-          <div key={i} className="rounded-xl overflow-hidden border border-border">
+        {runQuery.isSuccess && runQuery.data.found && runQuery.data.rows.map((row: any, i: number) => (
+          <div key={i} className="rounded-md overflow-hidden border border-border">
             <div className="px-4 py-2.5 flex justify-between items-center font-bold text-sm"
-                 style={{ background: BG_PAGE }}>
+                 >
               <span className="text-muted-foreground">Result {i + 1}</span>
               <span className="text-blue-400 font-mono">{barcode}</span>
             </div>
-            <div className="p-4 flex flex-col gap-3" style={{ background: BG_INPUT }}>
+            <div className="p-4 flex flex-col gap-3" >
               {Object.entries(row).map(([key, value]) => (
                 <div key={key} className="flex flex-col border-b border-border pb-2 last:border-0 last:pb-0">
                   <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">{key}</span>
@@ -399,7 +393,7 @@ function SqlTab({
 
       {/* ── Live DB status banner ─────────────────────────────────────── */}
       <div
-        className={`rounded-xl px-4 py-3 flex items-center justify-between gap-3 border ${statusMeta.border}`}
+        className={`rounded-md px-4 py-3 flex items-center justify-between gap-3 border ${statusMeta.border}`}
         style={{ background: statusMeta.bg }}
       >
         <div className="flex items-center gap-2.5">
@@ -445,15 +439,15 @@ function SqlTab({
           value={config.port || ""}
           onChange={e => set({ port: parseInt(e.target.value) || 1433 })}
           placeholder="1433"
-          className="w-full rounded-xl px-4 py-3.5 text-foreground text-base outline-none
+          className="w-full rounded-md px-4 py-3.5 text-foreground text-base outline-none
                      border border-border focus:border-primary transition-colors"
-          style={{ background: BG_INPUT }}
+          
         />
       </div>
 
       <div
-        className="flex items-center justify-between rounded-xl px-4 py-3 gap-4"
-        style={{ background: BG_INPUT }}
+        className="flex items-center justify-between rounded-md px-4 py-3 gap-4"
+        
       >
         <div>
           <div className="text-foreground text-sm font-medium">Windows Authentication</div>
@@ -466,14 +460,14 @@ function SqlTab({
       </div>
 
       {testConn.isError && (
-        <div className="rounded-xl px-4 py-3 text-sm text-red-300 border border-red-500/30 break-words"
+        <div className="rounded-md px-4 py-3 text-sm text-red-300 border border-red-500/30 break-words"
              style={{ background: "rgba(239,68,68,0.1)" }}>
           {(testConn.error instanceof Error ? testConn.error.message : "Unknown error")
             .replace(/^HTTP \d+ [^:]+:\s*/, "")}
         </div>
       )}
       {testConn.isSuccess && testConn.data.success && (
-        <div className="rounded-xl px-4 py-3 text-sm text-green-300 border border-green-500/30 font-medium"
+        <div className="rounded-md px-4 py-3 text-sm text-green-300 border border-green-500/30 font-medium"
              style={{ background: "rgba(34,197,94,0.1)" }}>
           Connection successful
         </div>
@@ -498,7 +492,7 @@ function AdminTab({ session }: { session: { username: string; role: string } | n
     <div className="flex flex-col gap-5">
       <h2 className="text-xl font-bold text-foreground">Admin Setup</h2>
       {session && (
-        <div className="rounded-xl px-4 py-4 flex flex-col gap-1" style={{ background: BG_INPUT }}>
+        <div className="rounded-md px-4 py-4 flex flex-col gap-1" >
           <div className="text-muted-foreground text-xs uppercase tracking-wider font-semibold mb-1">Logged in as</div>
           <div className="text-foreground text-lg font-bold">{session.username}</div>
           <div className="flex items-center gap-1.5 mt-1">
@@ -507,7 +501,7 @@ function AdminTab({ session }: { session: { username: string; role: string } | n
           </div>
         </div>
       )}
-      <div className="rounded-xl px-4 py-3 text-sm text-muted-foreground border border-border" style={{ background: BG_PAGE }}>
+      <div className="rounded-md px-4 py-3 text-sm text-muted-foreground border border-border" >
         Users are managed via the <span className="text-foreground font-medium">USERS</span> table in your SQL Server database.
         Use the <span className="text-foreground font-medium">User Management</span> tab to add, enable, or disable users.
       </div>
@@ -555,12 +549,12 @@ function ScannerTab({ toast }: { toast: ReturnType<typeof useToast>["toast"] }) 
       </p>
 
       <div
-        className="flex items-center justify-between rounded-xl px-4 py-4 gap-4"
-        style={{ background: BG_INPUT }}
+        className="flex items-center justify-between rounded-md px-4 py-4 gap-4"
+        
       >
         <div>
           <div className="text-foreground text-sm font-medium flex items-center gap-2">
-            <Zap className="w-4 h-4 text-yellow-400" />
+            <Zap className="w-4 h-4 text-foreground" />
             Auto Flashlight
           </div>
           <div className="text-muted-foreground text-xs mt-0.5">
@@ -573,7 +567,7 @@ function ScannerTab({ toast }: { toast: ReturnType<typeof useToast>["toast"] }) 
         />
       </div>
 
-      <div className="rounded-xl px-4 py-3 text-xs text-muted-foreground border border-border" style={{ background: BG_PAGE }}>
+      <div className="rounded-md px-4 py-3 text-xs text-muted-foreground border border-border" >
         Note: Flashlight is only available on devices that support torch mode (most Android phones). It will be ignored silently on unsupported devices.
       </div>
 
@@ -589,8 +583,8 @@ function ScannerTab({ toast }: { toast: ReturnType<typeof useToast>["toast"] }) 
           onValueChange={handleTimeoutChange}
         >
           <SelectTrigger
-            className="rounded-xl border-border text-foreground"
-            style={{ background: BG_INPUT }}
+            className="rounded-md border-border text-foreground"
+            
           >
             <SelectValue />
           </SelectTrigger>
@@ -788,7 +782,7 @@ function UsersTab({
     return (
       <div className="flex flex-col gap-4">
         <h2 className="text-xl font-bold text-foreground">User Management</h2>
-        <div className="rounded-xl px-4 py-6 text-center text-muted-foreground" style={{ background: BG_INPUT }}>
+        <div className="rounded-md px-4 py-6 text-center text-muted-foreground" >
           Configure SQL Server connection first, then come back to manage users.
         </div>
       </div>
@@ -827,13 +821,13 @@ function UsersTab({
         Role from <span className="text-foreground font-mono">permetion</span>
       </div>
 
-      <div className="rounded-xl overflow-hidden" style={{ background: BG_INPUT }}>
+      <div className="rounded-md overflow-hidden" >
         {loading && users.length === 0 ? (
           <div className="px-4 py-8 text-center text-muted-foreground">Loading...</div>
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr style={{ background: BG_PAGE }}>
+              <tr >
                 <th className="text-left px-4 py-3 text-muted-foreground font-medium">Username</th>
                 <th className="text-left px-4 py-3 text-muted-foreground font-medium">Permission</th>
                 <th className="text-center px-4 py-3 text-muted-foreground font-medium">Active</th>
@@ -842,7 +836,7 @@ function UsersTab({
             </thead>
             <tbody>
               {users.map((user, i) => (
-                <tr key={user.id} style={{ borderTop: i > 0 ? `1px solid ${BG_PAGE}` : undefined }}>
+                <tr key={user.id} className={i > 0 ? "border-t border-background" : ""}>
                   <td className="px-4 py-3 text-foreground font-medium">{user.User_}</td>
                   <td className="px-4 py-3">
                     {(user.permetion ?? "").toLowerCase() === "admin"
