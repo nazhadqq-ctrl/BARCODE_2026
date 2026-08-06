@@ -80,7 +80,7 @@ export function LoginPage() {
       <div className="w-full max-w-sm flex flex-col items-center gap-8">
 
         <div className="flex flex-col items-center gap-4 text-center">
-          <div className="w-24 h-24 rounded-2xl overflow-hidden shadow-sm transform rotate-3">
+          <div className="w-12 h-12 rounded-md overflow-hidden shadow-sm">
             <img src={logo} alt="Nazhad inspection System" className="w-full h-full object-cover" />
           </div>
           <div>
@@ -89,14 +89,14 @@ export function LoginPage() {
           </div>
         </div>
 
-        <form onSubmit={handleLogin} className="w-full flex flex-col gap-5 bg-card p-6 sm:p-8 rounded-xl shadow-sm border">
+        <form onSubmit={handleLogin} className="bg-card p-6 rounded-lg shadow-sm border border-border flex flex-col gap-4">
           <div className="flex flex-col gap-2">
             <Label className="text-sm uppercase tracking-wider font-bold text-muted-foreground">Username</Label>
             <Input
               value={username}
               onChange={e => setUsername(e.target.value)}
               required
-              className="h-14 text-lg bg-background"
+              className="h-10 text-sm bg-background"
               autoCapitalize="none"
               autoCorrect="off"
             />
@@ -109,11 +109,11 @@ export function LoginPage() {
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
-              className="h-14 text-lg bg-background"
+              className="h-10 text-sm bg-background"
             />
           </div>
 
-          <Button type="submit" size="lg" className="h-14 text-lg font-bold mt-2" disabled={loading}>
+          <Button type="submit" className="h-10 font-medium mt-2" disabled={loading}>
             {loading ? "Checking..." : "LOGIN"}
           </Button>
         </form>

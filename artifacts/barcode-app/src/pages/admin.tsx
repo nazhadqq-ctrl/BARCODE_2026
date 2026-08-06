@@ -11,6 +11,7 @@ import type { ConnectionTestResult } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { ScannerModal } from "@/components/scanner-modal";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -67,9 +68,8 @@ function DarkInput({
         type={isPassword && !show ? "password" : "text"}
         placeholder={placeholder}
         autoComplete={autoComplete}
-        className="w-full rounded-xl px-4 py-3.5 text-foreground text-base outline-none
-                   border border-border focus:border-primary transition-colors"
-        style={{ background: BG_INPUT }}
+        className="w-full rounded-md px-3 py-2 text-foreground text-sm outline-none
+                   border border-border focus:border-primary transition-colors bg-background"
       />
       {isPassword && (
         <button
@@ -93,9 +93,8 @@ function GreenBtn({ onClick, disabled, children }: {
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="flex items-center gap-2 px-5 py-3 rounded-xl font-semibold text-foreground text-sm
-                 transition-opacity disabled:opacity-50 shrink-0"
-      style={{ background: BTN_GREEN }}
+      className="flex items-center gap-2 px-4 py-2 rounded-md font-semibold text-primary-foreground text-sm
+                 transition-opacity disabled:opacity-50 shrink-0 bg-primary hover:bg-primary/90"
     >
       {children}
     </button>
@@ -113,8 +112,7 @@ function BlueBtn({ type = "button", onClick, disabled, children }: {
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className="flex items-center gap-2 px-5 py-3 rounded-xl font-semibold text-foreground text-sm shrink-0 disabled:opacity-50"
-      style={{ background: BTN_BLUE }}
+      className="flex items-center gap-2 px-4 py-2 rounded-md font-semibold text-secondary-foreground text-sm shrink-0 disabled:opacity-50 bg-secondary hover:bg-secondary/80"
     >
       {children}
     </button>
@@ -174,13 +172,17 @@ export function AdminPage() {
               Configure SQL Server connection and manage users
             </p>
           </div>
-          <button
-            onClick={() => { localStorage.removeItem("ba_session"); navigate("/login"); }}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-muted-foreground
-                       hover:text-foreground hover:hover:bg-muted transition-colors text-sm"
-          >
-            <LogOut className="w-4 h-4" /> Go to Login
-          </button>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <button
+              onClick={() => { localStorage.removeItem("ba_session"); navigate("/login"); }}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-md text-muted-foreground
+                         hover:text-foreground hover:bg-muted transition-colors text-sm"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Sign out</span>
+            </button>
+          </div>
         </div>
 
         <div className="flex gap-2 flex-wrap">
@@ -260,9 +262,9 @@ function SearchTab() {
       <div className="flex flex-col gap-4">
         <Button
           onClick={() => setScannerOpen(true)}
-          className="w-full h-28 text-xl font-bold rounded-xl shadow-sm border-2 border-border flex flex-col gap-2"
+          className="w-full h-auto py-6 text-base font-medium rounded-lg shadow-sm border border-border flex flex-col gap-2"
         >
-          <ScanLine className="w-9 h-9" />
+          <ScanLine className="w-6 h-6" />
           SCAN BARCODE
         </Button>
 
@@ -311,9 +313,8 @@ function SearchTab() {
         )}
 
         {runQuery.isSuccess && !runQuery.data.found && (
-          <div className="rounded-xl px-4 py-8 text-center text-muted-foreground font-medium border border-dashed border-border"
-               style={{ background: BG_INPUT }}>
-            No results found
+          <div className="rounded-lg px-4 py-8 text-center text-muted-foreground font-medium border border-border">
+            No results found for {barcode}
           </div>
         )}
 
@@ -573,7 +574,7 @@ function ScannerTab({ toast }: { toast: ReturnType<typeof useToast>["toast"] }) 
       </div>
 
       <div className="rounded-xl px-4 py-3 text-xs text-muted-foreground border border-border" style={{ background: BG_PAGE }}>
-        💡 Note: Flashlight is only available on devices that support torch mode (most Android phones). It will be ignored silently on unsupported devices.
+        Note: Flashlight is only available on devices that support torch mode (most Android phones). It will be ignored silently on unsupported devices.
       </div>
 
       <div className="border-t border-border pt-5 flex flex-col gap-3">

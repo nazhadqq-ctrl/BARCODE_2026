@@ -4,6 +4,7 @@ import { getSession } from "@/lib/store";
 import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logo from "@/assets/logo.png";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -50,6 +51,7 @@ export function Layout({ children }: LayoutProps) {
             <div className="text-sm font-semibold text-muted-foreground mr-1">
               {session.username}
             </div>
+            <ThemeToggle />
             <Button
               variant="outline"
               size="icon"

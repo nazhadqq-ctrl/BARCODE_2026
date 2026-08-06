@@ -70,9 +70,9 @@ export function SearchPage() {
       <div className="flex flex-col gap-4">
         <Button
           onClick={() => setScannerOpen(true)}
-          className="w-full h-32 text-xl font-bold rounded-xl shadow-sm border-2 border-border flex flex-col gap-2"
+          className="w-full h-auto py-6 text-base font-medium rounded-lg shadow-sm border border-border flex flex-col gap-2"
         >
-          <ScanLine className="w-10 h-10" />
+          <ScanLine className="w-6 h-6" />
           SCAN BARCODE
         </Button>
 
@@ -87,10 +87,10 @@ export function SearchPage() {
             value={barcode}
             onChange={(e) => setBarcode(e.target.value)}
             placeholder="Enter barcode..."
-            className="h-14 text-lg bg-background"
+            className="h-10 text-sm bg-background"
           />
-          <Button type="submit" size="icon" className="h-14 w-14 shrink-0" disabled={runQuery.isPending}>
-            <Search className="w-6 h-6" />
+          <Button type="submit" size="icon" className="h-10 w-10 shrink-0" disabled={runQuery.isPending}>
+            <Search className="w-5 h-5" />
           </Button>
         </form>
       </div>
@@ -117,7 +117,7 @@ export function SearchPage() {
         )}
 
         {runQuery.isSuccess && !runQuery.data.found && (
-          <Card className="bg-muted border-dashed border-2">
+          <Card className="bg-muted border border-border">
             <CardContent className="p-8 text-center text-muted-foreground font-medium text-lg">
               This does not exist
             </CardContent>
@@ -125,7 +125,7 @@ export function SearchPage() {
         )}
 
         {runQuery.isSuccess && runQuery.data.found && runQuery.data.rows.map((row, index) => (
-          <Card key={index} className="overflow-hidden border-2 shadow-sm">
+          <Card key={index} className="overflow-hidden border shadow-sm">
             <CardContent className="p-0">
               <div className="bg-secondary text-secondary-foreground p-3 font-bold flex justify-between items-center">
                 <span>Result {index + 1}</span>
@@ -135,7 +135,7 @@ export function SearchPage() {
                 {Object.entries(row).map(([key, value]) => (
                   <div key={key} className="flex flex-col border-b border-border/50 pb-2 last:border-0 last:pb-0">
                     <span className="text-sm text-muted-foreground uppercase tracking-wider font-semibold">{key}</span>
-                    <span className="text-lg font-medium break-words">{String(value)}</span>
+                    <span className="text-base font-medium break-words">{String(value)}</span>
                   </div>
                 ))}
               </div>

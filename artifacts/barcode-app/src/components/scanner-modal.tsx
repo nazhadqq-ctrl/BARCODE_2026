@@ -392,8 +392,8 @@ export function ScannerModal({ open, onOpenChange, onDecode }: ScannerModalProps
         >
           {error ? (
             <div className="absolute inset-0 text-white flex flex-col items-center justify-center gap-4 p-6">
-              <CameraOff className="w-14 h-14 text-red-400" />
-              <p className="text-base text-center">{error}</p>
+              <CameraOff className="w-8 h-8 text-destructive" />
+              <p className="text-sm text-center">{error}</p>
             </div>
           ) : (
             <>
@@ -416,14 +416,14 @@ export function ScannerModal({ open, onOpenChange, onDecode }: ScannerModalProps
                 <div className="absolute left-0  bg-black/60" style={{ top: "25%", bottom: "25%", width: "1.5%" }} />
                 <div className="absolute right-0 bg-black/60" style={{ top: "25%", bottom: "25%", width: "1.5%" }} />
                 <div
-                  className="absolute border-2 border-yellow-400"
+                  className="absolute border border-primary/50"
                   style={{ top: "25%", bottom: "25%", left: "1.5%", right: "1.5%" }}
                 >
-                  <span className="absolute top-0    left-0  w-6 h-6 border-t-4 border-l-4 border-yellow-400" />
-                  <span className="absolute top-0    right-0 w-6 h-6 border-t-4 border-r-4 border-yellow-400" />
-                  <span className="absolute bottom-0 left-0  w-6 h-6 border-b-4 border-l-4 border-yellow-400" />
-                  <span className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-yellow-400" />
-                  <div className="absolute top-1/2 left-0 w-full h-[2px] -translate-y-1/2 bg-red-500 shadow-[0_0_10px_4px_rgba(239,68,68,0.6)]" />
+                  <span className="absolute top-0    left-0  w-6 h-6 border-t-2 border-l-2 border-primary" />
+                  <span className="absolute top-0    right-0 w-6 h-6 border-t-2 border-r-2 border-primary" />
+                  <span className="absolute bottom-0 left-0  w-6 h-6 border-b-2 border-l-2 border-primary" />
+                  <span className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-primary" />
+                  <div className="absolute top-1/2 left-0 w-full h-[1px] -translate-y-1/2 bg-destructive" />
                 </div>
               </div>
 
