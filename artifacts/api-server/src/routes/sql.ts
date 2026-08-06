@@ -13,13 +13,20 @@ function buildConfig(conn: {
   windowsAuth?: boolean | null;
 }): mssql.config {
   const useWindowsAuth = conn.windowsAuth === true;
+
+  // BULLETPROOF SHIELD: Strip invisible mobile spaces instantly
+  const cleanServer = conn.server ? conn.server.trim() : "";
+  const cleanDatabase = conn.database ? conn.database.trim() : "";
+  const cleanUser = conn.user ? conn.user.trim() : "";
+  const cleanPassword = conn.password ? conn.password.trim() : "";
+
   return {
-    server: conn.server,
-    database: conn.database,
-    user: useWindowsAuth ? undefined : conn.user,
-    password: useWindowsAuth ? undefined : conn.password,
+    server: cleanServer,
+    database: cleanDatabase,
+    user: useWindowsAuth ? undefined : cleanUser,
+    password: useWindowsAuth ? undefined : cleanPassword,
     port: conn.port ?? 1433,
-    domain: useWindowsAuth ? conn.server : undefined,
+    domain: useWindowsAuth ? cleanServer : undefined,
     options: {
       encrypt: false,
       trustServerCertificate: true,
@@ -48,7 +55,7 @@ router.post("/sql/test", async (req, res) => {
     res.status(400).json({ error: message });
   } finally {
     if (pool) {
-      try { await pool.close(); } catch {}
+      try { await pool.close(); } catch { }
     }
   }
 });
@@ -77,6 +84,7 @@ router.post("/sql/query", async (req, res) => {
           CONVERT(VARCHAR(10), Date_,   120)         AS [به‌رواری هاتن],
           car_type                                   AS [جۆری ئوتومبیل],
           shassy,
+          CC,                                        -- ADDED THIS EXACT LINE
           resulat                                    AS [ئه‌نجام],
           mobile,
           N_pshknin                                  AS [پشكنینی],
@@ -93,7 +101,7 @@ router.post("/sql/query", async (req, res) => {
     res.status(400).json({ error: message });
   } finally {
     if (pool) {
-      try { await pool.close(); } catch {}
+      try { await pool.close(); } catch { }
     }
   }
 });
