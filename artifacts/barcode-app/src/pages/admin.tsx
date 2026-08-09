@@ -30,7 +30,7 @@ import {
 type Tab = "search" | "sql" | "admin" | "users" | "scanner";
 
 const BTN_GREEN = "hsl(var(--primary))";
-const BTN_BLUE  = "hsl(var(--primary))";
+const BTN_BLUE = "hsl(var(--primary))";
 
 interface SqlUser {
   id: number;
@@ -116,11 +116,47 @@ function BlueBtn({ type = "button", onClick, disabled, children }: {
 
 type DbStatus = "unknown" | "checking" | "connected" | "offline";
 
+function SuperAdminLogin({ onLogin }: { onLogin: () => void }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (username === "Nazhad" && password === "Nn!@#123") {
+      onLogin();
+    } else {
+      setError("Invalid username or password");
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4 max-w-sm mx-auto my-8 p-6 border border-border rounded-lg bg-background shadow-sm">
+      <div className="flex flex-col items-center gap-2 mb-2">
+        <ShieldAlert className="w-8 h-8 text-primary" />
+        <h2 className="text-xl font-bold text-center">Authentication Required</h2>
+        <p className="text-sm text-muted-foreground text-center">Enter the master credentials to access settings.</p>
+      </div>
+      {error && <div className="text-destructive text-sm font-medium text-center bg-destructive/10 py-2 rounded-md">{error}</div>}
+      <div className="flex flex-col gap-2">
+        <label className="text-sm font-medium">Username</label>
+        <Input placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} />
+      </div>
+      <div className="flex flex-col gap-2">
+        <label className="text-sm font-medium">Password</label>
+        <Input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} />
+      </div>
+      <Button type="submit" className="mt-2 w-full">Login</Button>
+    </form>
+  );
+}
+
 export function AdminPage() {
   const [, navigate] = useLocation();
   const session = getSession();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<Tab>("search");
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   // ── DB connection status (shared across tab list dot + SqlTab banner) ──
   const [dbStatus, setDbStatus] = useState<DbStatus>("unknown");
@@ -136,7 +172,7 @@ export function AdminPage() {
       { data: { ...cleanCfg, port: cleanCfg.port ?? 1433 } },
       {
         onSuccess: (d: ConnectionTestResult) => setDbStatus(d.success ? "connected" : "offline"),
-        onError:   ()                         => setDbStatus("offline"),
+        onError: () => setDbStatus("offline"),
       },
     );
   }, [testConn]);
@@ -149,11 +185,11 @@ export function AdminPage() {
   }, [checkDb]);
 
   const tabs: { id: Tab; label: string; icon: React.FC<{ className?: string }> }[] = [
-    { id: "search",  label: "Search",          icon: Search      },
-    { id: "sql",     label: "SQL Server",      icon: Database    },
-    { id: "admin",   label: "Admin Setup",     icon: ShieldCheck },
-    { id: "users",   label: "User Management", icon: Users       },
-    { id: "scanner", label: "Scanner",         icon: ScanLine    },
+    { id: "search", label: "Search", icon: Search },
+    { id: "sql", label: "SQL Server", icon: Database },
+    { id: "admin", label: "Admin Setup", icon: ShieldCheck },
+    { id: "users", label: "User Management", icon: Users },
+    { id: "scanner", label: "Scanner", icon: ScanLine },
   ];
 
   return (
@@ -196,14 +232,13 @@ export function AdminPage() {
                 <span
                   title={
                     dbStatus === "connected" ? "Database connected" :
-                    dbStatus === "offline"   ? "Database offline"   :
-                    "Checking…"
+                      dbStatus === "offline" ? "Database offline" :
+                        "Checking…"
                   }
-                  className={`w-2 h-2 rounded-full shrink-0 ${
-                    dbStatus === "connected" ? "bg-green-400" :
-                    dbStatus === "offline"   ? "bg-red-400"   :
-                    "bg-yellow-400 animate-pulse"
-                  }`}
+                  className={`w-2 h-2 rounded-full shrink-0 ${dbStatus === "connected" ? "bg-green-400" :
+                      dbStatus === "offline" ? "bg-red-400" :
+                        "bg-yellow-400 animate-pulse"
+                    }`}
                 />
               )}
             </button>
@@ -214,10 +249,16 @@ export function AdminPage() {
           ? <SearchTab />
           : (
             <div className="rounded-lg p-6 sm:p-8 bg-card" >
-              {activeTab === "sql"     && <SqlTab     toast={toast} testConn={testConn} dbStatus={dbStatus} onRecheck={checkDb} />}
-              {activeTab === "admin"   && <AdminTab   session={session} />}
-              {activeTab === "users"   && <UsersTab   toast={toast} session={session} />}
-              {activeTab === "scanner" && <ScannerTab toast={toast} />}
+              {!isSuperAdmin ? (
+                <SuperAdminLogin onLogin={() => setIsSuperAdmin(true)} />
+              ) : (
+                <>
+                  {activeTab === "sql" && <SqlTab toast={toast} testConn={testConn} dbStatus={dbStatus} onRecheck={checkDb} />}
+                  {activeTab === "admin" && <AdminTab session={session} />}
+                  {activeTab === "users" && <UsersTab toast={toast} session={session} />}
+                  {activeTab === "scanner" && <ScannerTab toast={toast} />}
+                </>
+              )}
             </div>
           )
         }
@@ -274,7 +315,7 @@ function SearchTab() {
             onChange={e => setBarcode(e.target.value)}
             placeholder="Enter barcode..."
             className="flex-1 rounded-md px-4 py-3.5 text-foreground text-base outline-none border border-border focus:border-primary transition-colors"
-            
+
           />
           <button
             type="submit"
@@ -296,7 +337,7 @@ function SearchTab() {
 
         {runQuery.isError && (
           <div className="rounded-md px-4 py-4 flex flex-col items-center gap-2 text-center border border-red-500/30"
-               style={{ background: "rgba(239,68,68,0.1)" }}>
+            style={{ background: "rgba(239,68,68,0.1)" }}>
             <AlertTriangle className="w-8 h-8 text-red-400" />
             <p className="text-red-300 font-medium text-sm">
               {runQuery.error instanceof Error
@@ -315,7 +356,7 @@ function SearchTab() {
         {runQuery.isSuccess && runQuery.data.found && runQuery.data.rows.map((row: any, i: number) => (
           <div key={i} className="rounded-md overflow-hidden border border-border">
             <div className="px-4 py-2.5 flex justify-between items-center font-bold text-sm"
-                 >
+            >
               <span className="text-muted-foreground">Result {i + 1}</span>
               <span className="text-blue-400 font-mono">{barcode}</span>
             </div>
@@ -381,10 +422,10 @@ function SqlTab({
 
   // ── Status colours ───────────────────────────────────────────────────────
   const statusMeta = {
-    unknown:   { border: "border-border",       bg: "rgba(30,42,58,0.6)",    icon: <Database  className="w-4 h-4 text-muted-foreground" />,              text: "text-muted-foreground",  label: "Not configured — enter details below" },
-    checking:  { border: "border-yellow-500/30",  bg: "rgba(234,179,8,0.08)", icon: <RefreshCw className="w-4 h-4 text-yellow-400 animate-spin" />,  text: "text-yellow-300", label: "Checking database connection…" },
-    connected: { border: "border-green-500/30",   bg: "rgba(34,197,94,0.08)", icon: <CheckCircle className="w-4 h-4 text-green-400" />,              text: "text-green-300",  label: "Database Connected" },
-    offline:   { border: "border-red-500/30",     bg: "rgba(239,68,68,0.08)", icon: <AlertTriangle className="w-4 h-4 text-red-400" />,              text: "text-red-300",    label: "Database Offline" },
+    unknown: { border: "border-border", bg: "rgba(30,42,58,0.6)", icon: <Database className="w-4 h-4 text-muted-foreground" />, text: "text-muted-foreground", label: "Not configured — enter details below" },
+    checking: { border: "border-yellow-500/30", bg: "rgba(234,179,8,0.08)", icon: <RefreshCw className="w-4 h-4 text-yellow-400 animate-spin" />, text: "text-yellow-300", label: "Checking database connection…" },
+    connected: { border: "border-green-500/30", bg: "rgba(34,197,94,0.08)", icon: <CheckCircle className="w-4 h-4 text-green-400" />, text: "text-green-300", label: "Database Connected" },
+    offline: { border: "border-red-500/30", bg: "rgba(239,68,68,0.08)", icon: <AlertTriangle className="w-4 h-4 text-red-400" />, text: "text-red-300", label: "Database Offline" },
   }[dbStatus];
 
   return (
@@ -441,13 +482,13 @@ function SqlTab({
           placeholder="1433"
           className="w-full rounded-md px-4 py-3.5 text-foreground text-base outline-none
                      border border-border focus:border-primary transition-colors"
-          
+
         />
       </div>
 
       <div
         className="flex items-center justify-between rounded-md px-4 py-3 gap-4"
-        
+
       >
         <div>
           <div className="text-foreground text-sm font-medium">Windows Authentication</div>
@@ -461,14 +502,14 @@ function SqlTab({
 
       {testConn.isError && (
         <div className="rounded-md px-4 py-3 text-sm text-red-300 border border-red-500/30 break-words"
-             style={{ background: "rgba(239,68,68,0.1)" }}>
+          style={{ background: "rgba(239,68,68,0.1)" }}>
           {(testConn.error instanceof Error ? testConn.error.message : "Unknown error")
             .replace(/^HTTP \d+ [^:]+:\s*/, "")}
         </div>
       )}
       {testConn.isSuccess && testConn.data.success && (
         <div className="rounded-md px-4 py-3 text-sm text-green-300 border border-green-500/30 font-medium"
-             style={{ background: "rgba(34,197,94,0.1)" }}>
+          style={{ background: "rgba(34,197,94,0.1)" }}>
           Connection successful
         </div>
       )}
@@ -550,7 +591,7 @@ function ScannerTab({ toast }: { toast: ReturnType<typeof useToast>["toast"] }) 
 
       <div
         className="flex items-center justify-between rounded-md px-4 py-4 gap-4"
-        
+
       >
         <div>
           <div className="text-foreground text-sm font-medium flex items-center gap-2">
@@ -584,7 +625,7 @@ function ScannerTab({ toast }: { toast: ReturnType<typeof useToast>["toast"] }) 
         >
           <SelectTrigger
             className="rounded-md border-border text-foreground"
-            
+
           >
             <SelectValue />
           </SelectTrigger>
@@ -816,8 +857,8 @@ function UsersTab({
       </div>
 
       <div className="text-xs text-muted-foreground -mt-2">
-        Table: <span className="text-foreground font-mono">USERS</span> · 
-        Login is controlled by <span className="text-foreground font-mono">on_off</span> = <span className="text-green-400">yes</span> / <span className="text-red-400">no</span> · 
+        Table: <span className="text-foreground font-mono">USERS</span> ·
+        Login is controlled by <span className="text-foreground font-mono">on_off</span> = <span className="text-green-400">yes</span> / <span className="text-red-400">no</span> ·
         Role from <span className="text-foreground font-mono">permetion</span>
       </div>
 
@@ -841,17 +882,16 @@ function UsersTab({
                   <td className="px-4 py-3">
                     {(user.permetion ?? "").toLowerCase() === "admin"
                       ? <span className="inline-flex items-center gap-1 bg-blue-600 text-foreground px-2 py-0.5 rounded text-xs font-bold">
-                          <ShieldAlert className="w-3 h-3" />ADMIN
-                        </span>
+                        <ShieldAlert className="w-3 h-3" />ADMIN
+                      </span>
                       : <span className="text-muted-foreground">{user.permetion || "user"}</span>}
                   </td>
                   <td className="px-4 py-3 text-center">
                     <button onClick={() => handleToggleOnOff(user)} className="inline-flex items-center">
-                      <span className={`px-2 py-0.5 rounded text-xs font-bold ${
-                        (user.on_off ?? "").toLowerCase() === "yes"
+                      <span className={`px-2 py-0.5 rounded text-xs font-bold ${(user.on_off ?? "").toLowerCase() === "yes"
                           ? "bg-green-600/20 text-green-400"
                           : "bg-red-600/20 text-red-400"
-                      }`}>
+                        }`}>
                         {(user.on_off ?? "no").toUpperCase()}
                       </span>
                     </button>
