@@ -1,43 +1,63 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "wouter";
 import {
-  getSession, getSqlConfig, saveSqlConfig,
-  getScannerSettings, saveScannerSettings,
-  getSessionTimeoutSettings, saveSessionTimeoutSettings,
-  SqlConfig, trimSqlConfig,
+  getSession,
+  clearSession,
+  getScannerSettings,
+  saveScannerSettings,
+  getSessionTimeoutSettings,
+  saveSessionTimeoutSettings,
+  type SqlConfig,
 } from "@/lib/store";
-import { useTestSqlConnection, useRunBarcodeQuery } from "@workspace/api-client-react";
-import type { ConnectionTestResult } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ScannerModal } from "@/components/scanner-modal";
 import { Switch } from "@/components/ui/switch";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Database, ShieldCheck, Users, CheckCircle, Save,
-  Trash2, UserPlus, ShieldAlert, Eye, EyeOff, LogOut, ScanLine,
-  Zap, RefreshCw, Pencil, Search, AlertTriangle,
+  Database,
+  ShieldCheck,
+  Users,
+  CheckCircle,
+  Save,
+  Trash2,
+  UserPlus,
+  ShieldAlert,
+  Eye,
+  EyeOff,
+  LogOut,
+  ScanLine,
+  Zap,
+  RefreshCw,
+  Pencil,
+  Search,
+  AlertTriangle,
 } from "lucide-react";
 
 type Tab = "search" | "sql" | "admin" | "users" | "scanner";
 
-const BTN_GREEN = "hsl(var(--primary))";
 const BTN_BLUE = "hsl(var(--primary))";
 
 interface SqlUser {
   id: number;
   User_: string;
-  password: string;
-  permetion: string;
-  on_off: string;
+  password?: string;
+  permetion?: string;
+  on_off?: string;
 }
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
@@ -45,7 +65,11 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 }
 
 function DarkInput({
-  value, onChange, type = "text", placeholder, autoComplete,
+  value,
+  onChange,
+  type = "text",
+  placeholder,
+  autoComplete,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -59,19 +83,19 @@ function DarkInput({
     <div className="relative">
       <input
         value={value}
-        onChange={e => onChange(e.target.value)}
+        onChange={(e) => onChange(e.target.value)}
         type={isPassword && !show ? "password" : "text"}
         placeholder={placeholder}
         autoComplete={autoComplete}
-        className="w-full rounded-md px-3 py-2 text-foreground text-sm outline-none
-                   border border-border focus:border-primary transition-colors bg-background"
+        className="w-full rounded-md px-4 py-3.5 text-foreground text-base outline-none
+                   border border-border focus:border-primary transition-colors pr-11 bg-background"
       />
       {isPassword && (
         <button
           type="button"
           tabIndex={-1}
           className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-          onClick={() => setShow(s => !s)}
+          onClick={() => setShow((s) => !s)}
         >
           {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
         </button>
@@ -80,34 +104,50 @@ function DarkInput({
   );
 }
 
-function GreenBtn({ onClick, disabled, children }: {
-  onClick?: () => void; disabled?: boolean; children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className="flex items-center gap-2 px-4 py-2 rounded-md font-semibold text-primary-foreground text-sm
-                 transition-opacity disabled:opacity-50 shrink-0 bg-primary hover:bg-primary/90"
-    >
-      {children}
-    </button>
-  );
-}
-
-function BlueBtn({ type = "button", onClick, disabled, children }: {
-  type?: "button" | "submit";
-  onClick?: () => void;
-  disabled?: boolean;
+function GreenBtn({
+  children,
+  onClick,
+  type = "button",
+  disabled,
+}: {
   children: React.ReactNode;
+  onClick?: () => void;
+  type?: "button" | "submit";
+  disabled?: boolean;
 }) {
   return (
     <button
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className="flex items-center gap-2 px-4 py-2 rounded-md font-semibold text-secondary-foreground text-sm shrink-0 disabled:opacity-50 bg-secondary hover:bg-secondary/80"
+      className="flex items-center justify-center gap-2 px-5 py-3.5 rounded-md font-semibold text-sm
+                 text-primary-foreground bg-primary hover:bg-primary/90 transition-all
+                 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+    >
+      {children}
+    </button>
+  );
+}
+
+function BlueBtn({
+  children,
+  onClick,
+  type = "button",
+  disabled,
+}: {
+  children: React.ReactNode;
+  onClick?: () => void;
+  type?: "button" | "submit";
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={disabled}
+      className="flex items-center justify-center gap-2 px-5 py-3.5 rounded-md font-semibold text-sm
+                 text-foreground transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+      style={{ background: BTN_BLUE }}
     >
       {children}
     </button>
@@ -116,34 +156,35 @@ function BlueBtn({ type = "button", onClick, disabled, children }: {
 
 type DbStatus = "unknown" | "checking" | "connected" | "offline";
 
-
-
 export function AdminPage() {
   const [, navigate] = useLocation();
   const session = getSession();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<Tab>("search");
 
-  // ── DB connection status (shared across tab list dot + SqlTab banner) ──
   const [dbStatus, setDbStatus] = useState<DbStatus>("unknown");
-  const testConn = useTestSqlConnection();
   const didMount = useRef(false);
 
-  const checkDb = useCallback((overrideConfig?: SqlConfig) => {
-    const cfg = overrideConfig ?? getSqlConfig();
-    const cleanCfg = trimSqlConfig(cfg);
-    if (!cleanCfg.server || !cleanCfg.database) { setDbStatus("unknown"); return; }
+  const checkDb = useCallback(async () => {
     setDbStatus("checking");
-    testConn.mutate(
-      { data: { ...cleanCfg, port: cleanCfg.port ?? 1433 } },
-      {
-        onSuccess: (d: ConnectionTestResult) => setDbStatus(d.success ? "connected" : "offline"),
-        onError: () => setDbStatus("offline"),
-      },
-    );
-  }, [testConn]);
+    try {
+      const res = await fetch("/api/sql/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setDbStatus("connected");
+      } else {
+        setDbStatus("offline");
+      }
+    } catch {
+      setDbStatus("offline");
+    }
+  }, []);
 
-  // Auto-check on first render
   useEffect(() => {
     if (didMount.current) return;
     didMount.current = true;
@@ -166,21 +207,25 @@ export function AdminPage() {
     { id: "scanner", label: "Scanner", icon: ScanLine },
   ];
 
-  return (
-    <div className="min-h-screen w-full px-4 py-8 sm:px-8" >
-      <div className="max-w-3xl mx-auto flex flex-col gap-6">
+  const handleSignOut = async () => {
+    await clearSession();
+    navigate("/login");
+  };
 
+  return (
+    <div className="min-h-screen w-full px-4 py-8 sm:px-8">
+      <div className="max-w-3xl mx-auto flex flex-col gap-6">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-foreground">Admin Panel</h1>
             <p className="text-muted-foreground mt-1 text-sm">
-              Configure SQL Server connection and manage users
+              Configure SQL Server connection and manage users securely
             </p>
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
             <button
-              onClick={() => { localStorage.removeItem("ba_session"); navigate("/login"); }}
+              onClick={handleSignOut}
               className="flex items-center gap-1.5 px-3 py-2 rounded-md text-muted-foreground
                          hover:text-foreground hover:bg-muted transition-colors text-sm"
             >
@@ -195,44 +240,46 @@ export function AdminPage() {
             <button
               key={id}
               onClick={() => setActiveTab(id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium text-sm transition-all ${activeTab === id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
-              style={{
-                color: activeTab === id ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",
-              }}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium text-sm transition-all ${
+                activeTab === id
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              }`}
             >
               <Icon className="w-4 h-4" />
               {label}
               {id === "sql" && dbStatus !== "unknown" && (
                 <span
                   title={
-                    dbStatus === "connected" ? "Database connected" :
-                      dbStatus === "offline" ? "Database offline" :
-                        "Checking…"
+                    dbStatus === "connected"
+                      ? "Database connected"
+                      : dbStatus === "offline"
+                      ? "Database offline"
+                      : "Checking…"
                   }
-                  className={`w-2 h-2 rounded-full shrink-0 ${dbStatus === "connected" ? "bg-green-400" :
-                      dbStatus === "offline" ? "bg-red-400" :
-                        "bg-yellow-400 animate-pulse"
-                    }`}
+                  className={`w-2 h-2 rounded-full shrink-0 ${
+                    dbStatus === "connected"
+                      ? "bg-green-400"
+                      : dbStatus === "offline"
+                      ? "bg-red-400"
+                      : "bg-yellow-400 animate-pulse"
+                  }`}
                 />
               )}
             </button>
           ))}
         </div>
 
-        {activeTab === "search"
-          ? <SearchTab />
-          : (
-            <div className="rounded-lg p-6 sm:p-8 bg-card" >
-              <>
-                {activeTab === "sql" && <SqlTab toast={toast} testConn={testConn} dbStatus={dbStatus} onRecheck={checkDb} />}
-                {activeTab === "admin" && <AdminTab session={session} />}
-                {activeTab === "users" && <UsersTab toast={toast} session={session} />}
-                {activeTab === "scanner" && <ScannerTab toast={toast} />}
-              </>
-            </div>
-          )
-        }
-
+        {activeTab === "search" ? (
+          <SearchTab />
+        ) : (
+          <div className="rounded-lg p-6 sm:p-8 bg-card border border-border">
+            {activeTab === "sql" && <SqlTab toast={toast} dbStatus={dbStatus} onRecheck={checkDb} />}
+            {activeTab === "admin" && <AdminTab session={session} />}
+            {activeTab === "users" && <UsersTab toast={toast} session={session} />}
+            {activeTab === "scanner" && <ScannerTab toast={toast} />}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -240,21 +287,48 @@ export function AdminPage() {
 
 function SearchTab() {
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [barcode, setBarcode] = useState("");
   const [scannerOpen, setScannerOpen] = useState(false);
-  const sqlConfig = getSqlConfig();
-  const runQuery = useRunBarcodeQuery();
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<{ found: boolean; rows: Record<string, unknown>[] } | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const handleSearch = (e?: React.FormEvent, explicit?: string) => {
+  const handleSearch = async (e?: React.FormEvent, explicit?: string) => {
     if (e) e.preventDefault();
     const code = explicit ?? barcode;
-    if (!code) return;
-    const cleanConfig = trimSqlConfig(sqlConfig);
-    if (!cleanConfig.server || !cleanConfig.database) {
-      toast({ title: "Configuration Missing", description: "Save SQL Server settings first.", variant: "destructive" });
-      return;
+    if (!code.trim()) return;
+
+    setLoading(true);
+    setErrorMsg(null);
+    setResult(null);
+
+    try {
+      const res = await fetch("/api/sql/query", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ barcode: code.trim() }),
+      });
+
+      if (res.status === 401) {
+        toast({ title: "Session Expired", description: "Please log in again.", variant: "destructive" });
+        navigate("/login");
+        return;
+      }
+
+      const data = await res.json();
+      if (!res.ok) {
+        setErrorMsg(data.error || "Lookup failed");
+        return;
+      }
+
+      setResult(data);
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : "Lookup failed");
+    } finally {
+      setLoading(false);
     }
-    runQuery.mutate({ data: { connection: cleanConfig, barcode: code.trim() } });
   };
 
   const handleDecode = (text: string) => {
@@ -275,21 +349,22 @@ function SearchTab() {
 
         <div className="relative flex items-center">
           <div className="flex-grow border-t border-border" />
-          <span className="flex-shrink-0 mx-4 text-muted-foreground text-sm font-medium uppercase tracking-wider">or manually enter</span>
+          <span className="flex-shrink-0 mx-4 text-muted-foreground text-sm font-medium uppercase tracking-wider">
+            or manually enter
+          </span>
           <div className="flex-grow border-t border-border" />
         </div>
 
         <form onSubmit={handleSearch} className="flex gap-2">
           <input
             value={barcode}
-            onChange={e => setBarcode(e.target.value)}
+            onChange={(e) => setBarcode(e.target.value)}
             placeholder="Enter barcode..."
-            className="flex-1 rounded-md px-4 py-3.5 text-foreground text-base outline-none border border-border focus:border-primary transition-colors"
-
+            className="flex-1 rounded-md px-4 py-3.5 text-foreground text-base outline-none border border-border focus:border-primary transition-colors bg-background"
           />
           <button
             type="submit"
-            disabled={runQuery.isPending}
+            disabled={loading}
             className="flex items-center justify-center w-14 h-14 rounded-md text-foreground shrink-0 disabled:opacity-50"
             style={{ background: BTN_BLUE }}
           >
@@ -299,47 +374,45 @@ function SearchTab() {
       </div>
 
       <div className="flex flex-col gap-4">
-        {runQuery.isPending && (
+        {loading && (
           <div className="flex items-center justify-center py-8">
-            <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
         )}
 
-        {runQuery.isError && (
-          <div className="rounded-md px-4 py-4 flex flex-col items-center gap-2 text-center border border-red-500/30"
-            style={{ background: "rgba(239,68,68,0.1)" }}>
+        {errorMsg && (
+          <div className="rounded-md px-4 py-4 flex flex-col items-center gap-2 text-center border border-red-500/30 bg-destructive/10">
             <AlertTriangle className="w-8 h-8 text-red-400" />
-            <p className="text-red-300 font-medium text-sm">
-              {runQuery.error instanceof Error
-                ? runQuery.error.message.replace(/^HTTP \d+ [^:]+:\s*/, "")
-                : "Lookup failed"}
-            </p>
+            <p className="text-red-300 font-medium text-sm">{errorMsg}</p>
           </div>
         )}
 
-        {runQuery.isSuccess && !runQuery.data.found && (
+        {result && !result.found && (
           <div className="rounded-lg px-4 py-8 text-center text-muted-foreground font-medium border border-border">
             No results found for {barcode}
           </div>
         )}
 
-        {runQuery.isSuccess && runQuery.data.found && runQuery.data.rows.map((row: any, i: number) => (
-          <div key={i} className="rounded-md overflow-hidden border border-border">
-            <div className="px-4 py-2.5 flex justify-between items-center font-bold text-sm"
-            >
-              <span className="text-muted-foreground">Result {i + 1}</span>
-              <span className="text-blue-400 font-mono">{barcode}</span>
+        {result &&
+          result.found &&
+          result.rows.map((row: any, i: number) => (
+            <div key={i} className="rounded-md overflow-hidden border border-border">
+              <div className="px-4 py-2.5 flex justify-between items-center font-bold text-sm bg-muted">
+                <span className="text-muted-foreground">Result {i + 1}</span>
+                <span className="text-primary font-mono">{barcode}</span>
+              </div>
+              <div className="p-4 flex flex-col gap-3">
+                {Object.entries(row).map(([key, value]) => (
+                  <div key={key} className="flex flex-col border-b border-border pb-2 last:border-0 last:pb-0">
+                    <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">
+                      {key}
+                    </span>
+                    <span className="text-foreground font-medium break-words mt-0.5">{String(value)}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="p-4 flex flex-col gap-3" >
-              {Object.entries(row).map(([key, value]) => (
-                <div key={key} className="flex flex-col border-b border-border pb-2 last:border-0 last:pb-0">
-                  <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">{key}</span>
-                  <span className="text-foreground font-medium break-words mt-0.5">{String(value)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
+          ))}
       </div>
 
       <ScannerModal open={scannerOpen} onOpenChange={setScannerOpen} onDecode={handleDecode} />
@@ -348,61 +421,133 @@ function SearchTab() {
 }
 
 function SqlTab({
-  toast, testConn, dbStatus, onRecheck,
+  toast,
+  dbStatus,
+  onRecheck,
 }: {
   toast: ReturnType<typeof useToast>["toast"];
-  testConn: ReturnType<typeof useTestSqlConnection>;
   dbStatus: DbStatus;
-  onRecheck: (cfg?: SqlConfig) => void;
+  onRecheck: () => void;
 }) {
-  const [config, setConfig] = useState<SqlConfig>(getSqlConfig());
+  const [config, setConfig] = useState<SqlConfig>({
+    server: "",
+    database: "",
+    user: "",
+    password: "",
+    port: 1433,
+    windowsAuth: false,
+  });
+  const [loading, setLoading] = useState(false);
 
-  const set = (patch: Partial<SqlConfig>) => setConfig(c => ({ ...c, ...patch }));
-
-  const handleTest = () => {
-    const cleanConfig = trimSqlConfig(config);
-    setConfig(cleanConfig);
-    const cfg = { ...cleanConfig, port: Number(cleanConfig.port) || 1433 };
-    testConn.mutate({ data: cfg }, {
-      onSuccess: (data: ConnectionTestResult) => {
-        if (data.success) {
-          toast({ title: "Connected", description: "SQL Server connection successful." });
-        } else {
-          toast({ title: "Failed", description: data.message, variant: "destructive" });
+  useEffect(() => {
+    fetch("/api/sql/config", { credentials: "include" })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.config) {
+          setConfig({
+            server: data.config.server || "",
+            database: data.config.database || "",
+            user: data.config.user || "",
+            password: "",
+            port: data.config.port || 1433,
+            windowsAuth: data.config.windowsAuth || false,
+            hasPassword: data.config.hasPassword,
+          });
         }
-        onRecheck(cfg);
-      },
-      onError: (err: unknown) => {
-        const raw = err instanceof Error ? err.message : "Connection failed";
-        toast({ title: "Connection Failed", description: raw.replace(/^HTTP \d+ [^:]+:\s*/, ""), variant: "destructive" });
-        onRecheck(cfg);
-      },
-    });
+      })
+      .catch(() => {});
+  }, []);
+
+  const set = (patch: Partial<SqlConfig>) => setConfig((c) => ({ ...c, ...patch }));
+
+  const handleTest = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/sql/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(config),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast({ title: "Connected", description: "SQL Server connection successful." });
+      } else {
+        toast({ title: "Failed", description: data.error || data.message, variant: "destructive" });
+      }
+      onRecheck();
+    } catch (err: any) {
+      toast({ title: "Connection Failed", description: err.message, variant: "destructive" });
+      onRecheck();
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanConfig = trimSqlConfig(config);
-    setConfig(cleanConfig);
-    const cfg = { ...cleanConfig, port: Number(cleanConfig.port) || 1433 };
-    saveSqlConfig(cfg);
-    toast({ title: "Saved", description: "Configuration saved to this device." });
-    onRecheck(cfg);
+    setLoading(true);
+    try {
+      const res = await fetch("/api/sql/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(config),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast({ title: "Saved", description: "Configuration updated and connected on the server." });
+        onRecheck();
+      } else {
+        toast({ title: "Save Failed", description: data.error || "Failed to connect", variant: "destructive" });
+      }
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // ── Status colours ───────────────────────────────────────────────────────
   const statusMeta = {
-    unknown: { border: "border-border", bg: "rgba(30,42,58,0.6)", icon: <Database className="w-4 h-4 text-muted-foreground" />, text: "text-muted-foreground", label: "Not configured — enter details below" },
-    checking: { border: "border-yellow-500/30", bg: "rgba(234,179,8,0.08)", icon: <RefreshCw className="w-4 h-4 text-yellow-400 animate-spin" />, text: "text-yellow-300", label: "Checking database connection…" },
-    connected: { border: "border-green-500/30", bg: "rgba(34,197,94,0.08)", icon: <CheckCircle className="w-4 h-4 text-green-400" />, text: "text-green-300", label: "Database Connected" },
-    offline: { border: "border-red-500/30", bg: "rgba(239,68,68,0.08)", icon: <AlertTriangle className="w-4 h-4 text-red-400" />, text: "text-red-300", label: "Database Offline" },
+    unknown: {
+      border: "border-border",
+      bg: "rgba(30,42,58,0.6)",
+      icon: <Database className="w-4 h-4 text-muted-foreground" />,
+      text: "text-muted-foreground",
+      label: "Not configured — enter details below",
+    },
+    checking: {
+      border: "border-yellow-500/30",
+      bg: "rgba(234,179,8,0.08)",
+      icon: <RefreshCw className="w-4 h-4 text-yellow-400 animate-spin" />,
+      text: "text-yellow-300",
+      label: "Checking database connection…",
+    },
+    connected: {
+      border: "border-green-500/30",
+      bg: "rgba(34,197,94,0.08)",
+      icon: <CheckCircle className="w-4 h-4 text-green-400" />,
+      text: "text-green-300",
+      label: "Database Connected (Server-Side)",
+    },
+    offline: {
+      border: "border-red-500/30",
+      bg: "rgba(239,68,68,0.08)",
+      icon: <AlertTriangle className="w-4 h-4 text-red-400" />,
+      text: "text-red-300",
+      label: "Database Offline",
+    },
   }[dbStatus];
 
   return (
     <form onSubmit={handleSave} className="flex flex-col gap-5">
-      <h2 className="text-xl font-bold text-foreground">SQL Server Configuration</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-foreground">SQL Server Configuration</h2>
+        <span className="text-xs px-2.5 py-1 rounded-full bg-primary/10 text-primary font-semibold">
+          Server-Side Protected
+        </span>
+      </div>
 
-      {/* ── Live DB status banner ─────────────────────────────────────── */}
       <div
         className={`rounded-md px-4 py-3 flex items-center justify-between gap-3 border ${statusMeta.border}`}
         style={{ background: statusMeta.bg }}
@@ -414,9 +559,9 @@ function SqlTab({
         {dbStatus !== "unknown" && dbStatus !== "checking" && (
           <button
             type="button"
-            onClick={() => onRecheck(config)}
+            onClick={onRecheck}
             title="Re-check connection"
-            className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-lg hover:hover:bg-muted shrink-0"
+            className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-lg hover:bg-muted shrink-0"
           >
             <RefreshCw className="w-3.5 h-3.5" />
           </button>
@@ -425,22 +570,30 @@ function SqlTab({
 
       <div>
         <FieldLabel>Server IP / Hostname</FieldLabel>
-        <DarkInput value={config.server} onChange={v => set({ server: v })} placeholder="e.g. 192.168.1.100" />
+        <DarkInput value={config.server} onChange={(v) => set({ server: v })} placeholder="e.g. localhost or 192.168.1.100" />
       </div>
 
       <div>
         <FieldLabel>Database Name</FieldLabel>
-        <DarkInput value={config.database} onChange={v => set({ database: v })} />
+        <DarkInput value={config.database} onChange={(v) => set({ database: v })} />
       </div>
 
       <div>
         <FieldLabel>SQL Username</FieldLabel>
-        <DarkInput value={config.user} onChange={v => set({ user: v })} autoComplete="username" />
+        <DarkInput value={config.user ?? ""} onChange={(v) => set({ user: v })} autoComplete="username" />
       </div>
 
       <div>
-        <FieldLabel>SQL Password</FieldLabel>
-        <DarkInput value={config.password} onChange={v => set({ password: v })} type="password" autoComplete="current-password" />
+        <FieldLabel>
+          SQL Password {config.hasPassword && <span className="text-xs text-muted-foreground font-normal">(Leave blank to keep existing)</span>}
+        </FieldLabel>
+        <DarkInput
+          value={config.password ?? ""}
+          onChange={(v) => set({ password: v })}
+          type="password"
+          placeholder={config.hasPassword ? "•••••••• (configured on server)" : "Enter SQL password"}
+          autoComplete="current-password"
+        />
       </div>
 
       <div>
@@ -448,50 +601,30 @@ function SqlTab({
         <input
           type="number"
           value={config.port || ""}
-          onChange={e => set({ port: parseInt(e.target.value) || 1433 })}
+          onChange={(e) => set({ port: parseInt(e.target.value) || 1433 })}
           placeholder="1433"
           className="w-full rounded-md px-4 py-3.5 text-foreground text-base outline-none
-                     border border-border focus:border-primary transition-colors"
-
+                     border border-border focus:border-primary transition-colors bg-background"
         />
       </div>
 
-      <div
-        className="flex items-center justify-between rounded-md px-4 py-3 gap-4"
-
-      >
+      <div className="flex items-center justify-between rounded-md px-4 py-3 gap-4 border border-border">
         <div>
           <div className="text-foreground text-sm font-medium">Windows Authentication</div>
-          <div className="text-muted-foreground text-xs mt-0.5">Use Windows login instead of SQL credentials</div>
+          <div className="text-muted-foreground text-xs mt-0.5">Use Windows login on the server</div>
         </div>
         <Switch
           checked={config.windowsAuth ?? false}
-          onCheckedChange={val => set({ windowsAuth: val })}
+          onCheckedChange={(val) => set({ windowsAuth: val })}
         />
       </div>
 
-      {testConn.isError && (
-        <div className="rounded-md px-4 py-3 text-sm text-red-300 border border-red-500/30 break-words"
-          style={{ background: "rgba(239,68,68,0.1)" }}>
-          {(testConn.error instanceof Error ? testConn.error.message : "Unknown error")
-            .replace(/^HTTP \d+ [^:]+:\s*/, "")}
-        </div>
-      )}
-      {testConn.isSuccess && testConn.data.success && (
-        <div className="rounded-md px-4 py-3 text-sm text-green-300 border border-green-500/30 font-medium"
-          style={{ background: "rgba(34,197,94,0.1)" }}>
-          Connection successful
-        </div>
-      )}
-
-      <div className="flex gap-3 pt-1 flex-wrap">
-        <GreenBtn onClick={handleTest} disabled={testConn.isPending}>
-          <CheckCircle className="w-4 h-4" />
-          {testConn.isPending ? "Testing..." : "Test Connection"}
+      <div className="flex gap-3 pt-2">
+        <GreenBtn type="submit" disabled={loading}>
+          <Save className="w-4 h-4" /> Save to Server
         </GreenBtn>
-        <BlueBtn type="submit">
-          <Save className="w-4 h-4" />
-          Save Configuration
+        <BlueBtn type="button" onClick={handleTest} disabled={loading}>
+          <Zap className="w-4 h-4" /> Test Connection
         </BlueBtn>
       </div>
     </form>
@@ -503,110 +636,19 @@ function AdminTab({ session }: { session: { username: string; role: string } | n
     <div className="flex flex-col gap-5">
       <h2 className="text-xl font-bold text-foreground">Admin Setup</h2>
       {session && (
-        <div className="rounded-md px-4 py-4 flex flex-col gap-1" >
-          <div className="text-muted-foreground text-xs uppercase tracking-wider font-semibold mb-1">Logged in as</div>
+        <div className="rounded-md px-4 py-4 flex flex-col gap-1 border border-border bg-muted/40">
+          <div className="text-muted-foreground text-xs uppercase tracking-wider font-semibold mb-1">
+            Logged in as
+          </div>
           <div className="text-foreground text-lg font-bold">{session.username}</div>
           <div className="flex items-center gap-1.5 mt-1">
-            <ShieldAlert className="w-3.5 h-3.5 text-blue-400" />
-            <span className="text-blue-400 text-sm font-semibold uppercase">{session.role}</span>
+            <ShieldAlert className="w-3.5 h-3.5 text-primary" />
+            <span className="text-primary text-sm font-semibold uppercase">{session.role}</span>
           </div>
         </div>
       )}
-      <div className="rounded-md px-4 py-3 text-sm text-muted-foreground border border-border" >
-        Users are managed via the <span className="text-foreground font-medium">USERS</span> table in your SQL Server database.
-        Use the <span className="text-foreground font-medium">User Management</span> tab to add, enable, or disable users.
-      </div>
-    </div>
-  );
-}
-
-const TIMEOUT_OPTIONS = [
-  { label: "Disabled", value: 0 },
-  { label: "5 minutes", value: 5 },
-  { label: "10 minutes", value: 10 },
-  { label: "15 minutes", value: 15 },
-  { label: "30 minutes", value: 30 },
-  { label: "1 hour", value: 60 },
-];
-
-function ScannerTab({ toast }: { toast: ReturnType<typeof useToast>["toast"] }) {
-  const [settings, setSettings] = useState(getScannerSettings());
-  const [timeoutSettings, setTimeoutSettings] = useState(getSessionTimeoutSettings());
-
-  const toggle = (key: keyof ReturnType<typeof getScannerSettings>, val: boolean) => {
-    const next = { ...settings, [key]: val };
-    setSettings(next);
-    saveScannerSettings(next);
-    toast({ title: "Saved", description: "Scanner settings updated." });
-  };
-
-  const handleTimeoutChange = (val: string) => {
-    const next = { timeoutMinutes: Number(val) };
-    setTimeoutSettings(next);
-    saveSessionTimeoutSettings(next);
-    toast({
-      title: "Saved",
-      description: next.timeoutMinutes === 0
-        ? "Session timeout disabled."
-        : `Users will be logged out after ${TIMEOUT_OPTIONS.find(o => o.value === next.timeoutMinutes)?.label} of inactivity.`,
-    });
-  };
-
-  return (
-    <div className="flex flex-col gap-5">
-      <h2 className="text-xl font-bold text-foreground">Scanner & Session Settings</h2>
-      <p className="text-muted-foreground text-sm -mt-2">
-        Configure scanner behaviour and automatic logout for inactivity.
-      </p>
-
-      <div
-        className="flex items-center justify-between rounded-md px-4 py-4 gap-4"
-
-      >
-        <div>
-          <div className="text-foreground text-sm font-medium flex items-center gap-2">
-            <Zap className="w-4 h-4 text-foreground" />
-            Auto Flashlight
-          </div>
-          <div className="text-muted-foreground text-xs mt-0.5">
-            Automatically turn on the torch every time the scanner opens
-          </div>
-        </div>
-        <Switch
-          checked={settings.autoTorch}
-          onCheckedChange={(val) => toggle("autoTorch", val)}
-        />
-      </div>
-
-      <div className="rounded-md px-4 py-3 text-xs text-muted-foreground border border-border" >
-        Note: Flashlight is only available on devices that support torch mode (most Android phones). It will be ignored silently on unsupported devices.
-      </div>
-
-      <div className="border-t border-border pt-5 flex flex-col gap-3">
-        <div>
-          <div className="text-foreground text-sm font-medium mb-0.5">Auto Logout (Inactivity Timeout)</div>
-          <div className="text-muted-foreground text-xs">
-            Automatically log users out after a period of no activity. A 60-second warning appears before logout.
-          </div>
-        </div>
-        <Select
-          value={String(timeoutSettings.timeoutMinutes)}
-          onValueChange={handleTimeoutChange}
-        >
-          <SelectTrigger
-            className="rounded-md border-border text-foreground"
-
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {TIMEOUT_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={String(opt.value)}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="rounded-md px-4 py-3 text-sm text-muted-foreground border border-border">
+        Users and credentials are now secured server-side. Database credentials are encrypted and stored in the server environment.
       </div>
     </div>
   );
@@ -628,34 +670,34 @@ function UsersTab({
   const [formPassword, setFormPassword] = useState("");
   const [formPermetion, setFormPermetion] = useState("user");
   const [formOnOff, setFormOnOff] = useState<"yes" | "no">("yes");
-
-  const sqlConfig = trimSqlConfig(getSqlConfig());
-  const isConfigured = !!(sqlConfig.server && sqlConfig.database);
+  const [dbError, setDbError] = useState<string | null>(null);
 
   const loadUsers = useCallback(async () => {
-    if (!isConfigured) return;
-    const currentConfig = trimSqlConfig(getSqlConfig());
     setLoading(true);
+    setDbError(null);
     try {
-      const res = await fetch("/api/users/list", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ connection: currentConfig }),
-      });
-      const data = await res.json() as { users?: SqlUser[]; error?: string };
+      const res = await fetch("/api/users/list", { credentials: "include" });
+      const data = (await res.json()) as { users?: SqlUser[]; error?: string };
       if (!res.ok) throw new Error(data.error ?? "Failed to load");
       setUsers(data.users ?? []);
     } catch (err) {
-      toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to load users", variant: "destructive" });
+      const msg = err instanceof Error ? err.message : "Failed to load users";
+      setDbError(msg);
+      toast({ title: "Error", description: msg, variant: "destructive" });
     } finally {
       setLoading(false);
     }
-  }, [isConfigured, toast]);
+  }, [toast]);
 
-  useEffect(() => { loadUsers(); }, [loadUsers]);
+  useEffect(() => {
+    loadUsers();
+  }, [loadUsers]);
 
   const openAdd = () => {
-    setFormName(""); setFormPassword(""); setFormPermetion("user"); setFormOnOff("yes");
+    setFormName("");
+    setFormPassword("");
+    setFormPermetion("user");
+    setFormOnOff("yes");
     setAddOpen(true);
   };
 
@@ -669,14 +711,25 @@ function UsersTab({
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formName.trim()) { toast({ title: "Error", description: "Username required", variant: "destructive" }); return; }
+    if (!formName.trim()) {
+      toast({ title: "Error", description: "Username required", variant: "destructive" });
+      return;
+    }
     try {
       const res = await fetch("/api/users/add", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ connection: sqlConfig, user: { User_: formName.trim(), password: formPassword.trim(), permetion: formPermetion, on_off: formOnOff } }),
+        credentials: "include",
+        body: JSON.stringify({
+          user: {
+            User_: formName.trim(),
+            password: formPassword.trim(),
+            permetion: formPermetion,
+            on_off: formOnOff,
+          },
+        }),
       });
-      const data = await res.json() as { success?: boolean; error?: string };
+      const data = (await res.json()) as { success?: boolean; error?: string };
       if (!res.ok) throw new Error(data.error ?? "Failed to add");
       toast({ title: "User Added" });
       setAddOpen(false);
@@ -693,9 +746,17 @@ function UsersTab({
       const res = await fetch(`/api/users/${editUser.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ connection: sqlConfig, user: { User_: formName.trim(), password: formPassword.trim(), permetion: formPermetion, on_off: formOnOff } }),
+        credentials: "include",
+        body: JSON.stringify({
+          user: {
+            User_: formName.trim(),
+            password: formPassword.trim(),
+            permetion: formPermetion,
+            on_off: formOnOff,
+          },
+        }),
       });
-      const data = await res.json() as { success?: boolean; error?: string };
+      const data = (await res.json()) as { success?: boolean; error?: string };
       if (!res.ok) throw new Error(data.error ?? "Failed to update");
       toast({ title: "User Updated" });
       setEditUser(null);
@@ -711,11 +772,19 @@ function UsersTab({
       const res = await fetch(`/api/users/${u.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ connection: sqlConfig, user: { User_: u.User_, password: u.password ?? "", permetion: u.permetion, on_off: newVal } }),
+        credentials: "include",
+        body: JSON.stringify({
+          user: {
+            User_: u.User_,
+            password: u.password ?? "",
+            permetion: u.permetion,
+            on_off: newVal,
+          },
+        }),
       });
-      const data = await res.json() as { success?: boolean; error?: string };
+      const data = (await res.json()) as { success?: boolean; error?: string };
       if (!res.ok) throw new Error(data.error ?? "Failed");
-      setUsers(prev => prev.map(x => x.id === u.id ? { ...x, on_off: newVal } : x));
+      setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, on_off: newVal } : x)));
       toast({ title: newVal === "yes" ? "User Enabled" : "User Disabled" });
     } catch (err) {
       toast({ title: "Error", description: err instanceof Error ? err.message : "Failed", variant: "destructive" });
@@ -730,10 +799,9 @@ function UsersTab({
     try {
       const res = await fetch(`/api/users/${u.id}`, {
         method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ connection: sqlConfig }),
+        credentials: "include",
       });
-      const data = await res.json() as { success?: boolean; error?: string };
+      const data = (await res.json()) as { success?: boolean; error?: string };
       if (!res.ok) throw new Error(data.error ?? "Failed to delete");
       toast({ title: "User Deleted" });
       await loadUsers();
@@ -745,10 +813,10 @@ function UsersTab({
   const UserForm = ({ onSubmit, submitLabel }: { onSubmit: (e: React.FormEvent) => void; submitLabel: string }) => (
     <form onSubmit={onSubmit} className="flex flex-col gap-4 mt-4">
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium">Username (User_)</label>
+        <label className="text-sm font-medium">Username</label>
         <input
           value={formName}
-          onChange={e => setFormName(e.target.value)}
+          onChange={(e) => setFormName(e.target.value)}
           required
           className="border border-input rounded-md px-3 py-2 bg-background text-foreground"
         />
@@ -758,15 +826,17 @@ function UsersTab({
         <input
           type="password"
           value={formPassword}
-          onChange={e => setFormPassword(e.target.value)}
+          onChange={(e) => setFormPassword(e.target.value)}
           placeholder="Enter password"
           className="border border-input rounded-md px-3 py-2 bg-background text-foreground"
         />
       </div>
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium">Permission (permetion)</label>
+        <label className="text-sm font-medium">Permission</label>
         <Select value={formPermetion} onValueChange={setFormPermetion}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="user">User</SelectItem>
             <SelectItem value="admin">Admin</SelectItem>
@@ -780,125 +850,189 @@ function UsersTab({
             {formOnOff === "yes" ? "User can log in" : "User is blocked"}
           </p>
         </div>
-        <Switch
-          checked={formOnOff === "yes"}
-          onCheckedChange={val => setFormOnOff(val ? "yes" : "no")}
-        />
+        <Switch checked={formOnOff === "yes"} onCheckedChange={(val) => setFormOnOff(val ? "yes" : "no")} />
       </div>
       <BlueBtn type="submit">{submitLabel}</BlueBtn>
     </form>
   );
 
-  if (!isConfigured) {
-    return (
-      <div className="flex flex-col gap-4">
-        <h2 className="text-xl font-bold text-foreground">User Management</h2>
-        <div className="rounded-md px-4 py-6 text-center text-muted-foreground" >
-          Configure SQL Server connection first, then come back to manage users.
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h2 className="text-xl font-bold text-foreground">User Management</h2>
-        <div className="flex gap-2">
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-foreground">User Management</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">Manage database users and permissions</p>
+        </div>
+        <div className="flex items-center gap-2">
           <button
             onClick={loadUsers}
-            disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-muted-foreground
-                       hover:text-foreground hover:hover:bg-muted transition-colors text-sm disabled:opacity-50"
+            className="p-2 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           </button>
-
           <Dialog open={addOpen} onOpenChange={setAddOpen}>
             <DialogTrigger asChild>
-              <BlueBtn onClick={openAdd}><UserPlus className="w-4 h-4" /> Add User</BlueBtn>
+              <BlueBtn onClick={openAdd}>
+                <UserPlus className="w-4 h-4" /> Add User
+              </BlueBtn>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
-              <DialogHeader><DialogTitle>Add New User</DialogTitle></DialogHeader>
+              <DialogHeader>
+                <DialogTitle>Add New User</DialogTitle>
+              </DialogHeader>
               <UserForm onSubmit={handleAdd} submitLabel="Add User" />
             </DialogContent>
           </Dialog>
         </div>
       </div>
 
-      <div className="text-xs text-muted-foreground -mt-2">
-        Table: <span className="text-foreground font-mono">USERS</span> ·
-        Login is controlled by <span className="text-foreground font-mono">on_off</span> = <span className="text-green-400">yes</span> / <span className="text-red-400">no</span> ·
-        Role from <span className="text-foreground font-mono">permetion</span>
-      </div>
-
-      <div className="rounded-md overflow-hidden" >
-        {loading && users.length === 0 ? (
-          <div className="px-4 py-8 text-center text-muted-foreground">Loading...</div>
-        ) : (
+      {dbError ? (
+        <div className="rounded-md px-4 py-6 text-center text-muted-foreground border border-border">
+          {dbError.includes("not configured")
+            ? "Configure SQL Server in the SQL Server tab first, then return here to manage users."
+            : dbError}
+        </div>
+      ) : loading ? (
+        <div className="flex items-center justify-center py-8">
+          <RefreshCw className="w-6 h-6 animate-spin text-primary" />
+        </div>
+      ) : (
+        <div className="border border-border rounded-md overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr >
-                <th className="text-left px-4 py-3 text-muted-foreground font-medium">Username</th>
-                <th className="text-left px-4 py-3 text-muted-foreground font-medium">Permission</th>
-                <th className="text-center px-4 py-3 text-muted-foreground font-medium">Active</th>
-                <th className="text-right px-4 py-3 text-muted-foreground font-medium">Actions</th>
+              <tr className="border-b border-border bg-muted/50">
+                <th className="px-4 py-3 text-left font-medium">Username</th>
+                <th className="px-4 py-3 text-left font-medium">Role</th>
+                <th className="px-4 py-3 text-left font-medium">Active</th>
+                <th className="px-4 py-3 text-right font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {users.map((user, i) => (
-                <tr key={user.id} className={i > 0 ? "border-t border-background" : ""}>
-                  <td className="px-4 py-3 text-foreground font-medium">{user.User_}</td>
+              {users.map((u) => (
+                <tr key={u.id} className="border-b border-border/50 last:border-0 hover:bg-muted/30">
+                  <td className="px-4 py-3 font-medium">{u.User_}</td>
                   <td className="px-4 py-3">
-                    {(user.permetion ?? "").toLowerCase() === "admin"
-                      ? <span className="inline-flex items-center gap-1 bg-blue-600 text-foreground px-2 py-0.5 rounded text-xs font-bold">
-                        <ShieldAlert className="w-3 h-3" />ADMIN
-                      </span>
-                      : <span className="text-muted-foreground">{user.permetion || "user"}</span>}
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded font-semibold uppercase ${
+                        u.permetion === "admin"
+                          ? "bg-primary/20 text-primary"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {u.permetion || "user"}
+                    </span>
                   </td>
-                  <td className="px-4 py-3 text-center">
-                    <button onClick={() => handleToggleOnOff(user)} className="inline-flex items-center">
-                      <span className={`px-2 py-0.5 rounded text-xs font-bold ${(user.on_off ?? "").toLowerCase() === "yes"
-                          ? "bg-green-600/20 text-green-400"
-                          : "bg-red-600/20 text-red-400"
-                        }`}>
-                        {(user.on_off ?? "no").toUpperCase()}
-                      </span>
+                  <td className="px-4 py-3">
+                    <button
+                      onClick={() => handleToggleOnOff(u)}
+                      className={`text-xs px-2 py-0.5 rounded font-semibold ${
+                        u.on_off === "yes"
+                          ? "bg-green-500/20 text-green-400"
+                          : "bg-red-500/20 text-red-400"
+                      }`}
+                    >
+                      {u.on_off === "yes" ? "Active" : "Blocked"}
                     </button>
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <Dialog open={editUser?.id === user.id} onOpenChange={open => { if (!open) setEditUser(null); }}>
+                      <Dialog
+                        open={editUser?.id === u.id}
+                        onOpenChange={(open) => {
+                          if (!open) setEditUser(null);
+                        }}
+                      >
                         <DialogTrigger asChild>
                           <button
-                            onClick={() => openEdit(user)}
-                            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:hover:bg-muted transition-colors"
+                            onClick={() => openEdit(u)}
+                            className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
                           >
-                            <Pencil className="w-4 h-4" />
+                            <Pencil className="w-3.5 h-3.5" />
                           </button>
                         </DialogTrigger>
                         <DialogContent className="sm:max-w-md">
-                          <DialogHeader><DialogTitle>Edit User</DialogTitle></DialogHeader>
+                          <DialogHeader>
+                            <DialogTitle>Edit User</DialogTitle>
+                          </DialogHeader>
                           <UserForm onSubmit={handleEdit} submitLabel="Save Changes" />
                         </DialogContent>
                       </Dialog>
                       <button
-                        onClick={() => handleDelete(user)}
-                        disabled={!!session && user.User_ === session.username}
-                        className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-30"
+                        onClick={() => handleDelete(u)}
+                        className="p-1.5 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </td>
                 </tr>
               ))}
-              {users.length === 0 && !loading && (
-                <tr><td colSpan={4} className="px-4 py-6 text-center text-muted-foreground">No users found in USERS table</td></tr>
+              {users.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-4 py-6 text-center text-muted-foreground">
+                    No users found in database
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
-        )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ScannerTab({ toast }: { toast: ReturnType<typeof useToast>["toast"] }) {
+  const [scannerSettings, setScannerSettings] = useState(getScannerSettings());
+  const [sessionTimeout, setSessionTimeout] = useState(getSessionTimeoutSettings());
+
+  const handleSaveScanner = () => {
+    saveScannerSettings(scannerSettings);
+    toast({ title: "Saved", description: "Scanner settings updated." });
+  };
+
+  const handleSaveTimeout = () => {
+    saveSessionTimeoutSettings(sessionTimeout);
+    toast({ title: "Saved", description: "Session timeout updated." });
+  };
+
+  return (
+    <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-4">
+        <h2 className="text-xl font-bold text-foreground">Scanner Settings</h2>
+        <div className="flex items-center justify-between border border-border p-4 rounded-md">
+          <div>
+            <label className="text-sm font-medium">Auto Torch</label>
+            <p className="text-xs text-muted-foreground">Automatically turn on flashlight when scanner opens</p>
+          </div>
+          <Switch
+            checked={scannerSettings.autoTorch}
+            onCheckedChange={(val) => setScannerSettings({ autoTorch: val })}
+          />
+        </div>
+        <GreenBtn onClick={handleSaveScanner}>
+          <Save className="w-4 h-4" /> Save Scanner Settings
+        </GreenBtn>
+      </div>
+
+      <div className="flex flex-col gap-4 border-t border-border pt-6">
+        <h2 className="text-xl font-bold text-foreground">Session Timeout</h2>
+        <div className="flex flex-col gap-2">
+          <FieldLabel>Auto Sign-out Inactivity Timeout (minutes)</FieldLabel>
+          <input
+            type="number"
+            min={1}
+            max={120}
+            value={sessionTimeout.timeoutMinutes}
+            onChange={(e) =>
+              setSessionTimeout({ timeoutMinutes: parseInt(e.target.value) || 15 })
+            }
+            className="w-full rounded-md px-4 py-3 text-foreground border border-border bg-background"
+          />
+        </div>
+        <GreenBtn onClick={handleSaveTimeout}>
+          <Save className="w-4 h-4" /> Save Timeout Settings
+        </GreenBtn>
       </div>
     </div>
   );

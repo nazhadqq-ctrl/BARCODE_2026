@@ -8,7 +8,7 @@
 import type { SqlConnectionConfig } from './sqlConnectionConfig';
 
 export interface BarcodeQueryInput {
-  connection: SqlConnectionConfig;
+  connection?: SqlConnectionConfig;
   /** Barcode value to search for */
   barcode: string;
 }

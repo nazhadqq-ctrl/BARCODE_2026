@@ -1,0 +1,150 @@
+void RN()
+
+        { DateTime now;
+    // ١. وەرگرتنی کات و بەرواری فەرمیی بەغدا لە ئینتەرنێتەوە
+    try
+    {
+        using (HttpClient client = new HttpClient())
+        {
+            client.Timeout = TimeSpan.FromSeconds(5); // کاتی وەستان بۆ ئەوەی بەرنامەکە دانەمێنێت
+            // داواکاری کاتی سێرڤەر بە UTC
+            HttpResponseMessage response = await client.GetAsync("https://www.google.com", HttpCompletionOption.ResponseHeadersRead);
+            if (response.Headers.Date.HasValue)
+            {
+                DateTimeOffset utcTime = response.Headers.Date.Value;
+                // گۆڕینی کات بۆ کاتی فەرمیی عێراق / بەغدا (UTC+3)
+                now = utcTime.ToOffset(TimeSpan.FromHours(3)).DateTime;
+            }
+            else
+            {
+                MessageBox.Show("نەتوانرا کاتی فەرمی لە ئینتەرنێتەوە وەربگیرێت!", "هەڵە", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                emp_();
+                return;
+            }
+        }
+    }
+    catch
+    {
+        // ئەگەر ئینتەرنێت نەبوو یان کێشەیەک ڕوویدا لە پەیوەندی
+        MessageBox.Show("پەیوەندی ئینتەرنێت نییە یان پچڕاوە!\nتکایە دڵنیابەرەوە لە هەبوونی ئینتەرنێت بۆ دیاریکردنی کاتی فەرمی.", 
+                        "هەڵەی پەیوەندی", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        emp_();
+        return;
+    }
+    // ٢. یەکسانکردنی بەروار و کاتی DateTimePicker بە کاتی بەغدا
+    dtp_Releasing.Value = now;
+    // ٣. پشکنینی ڕۆژ و کاتژمێر بەپێی کاتی ئینتەرنێت
+    DayOfWeek today = now.DayOfWeek;
+    TimeSpan currentTime = now.TimeOfDay;
+    // پشکنینی ڕۆژانی شەممە و پێنج شەممە (تا کاتژمێر 14:15)
+    if (today == DayOfWeek.Saturday || today == DayOfWeek.Thursday)
+    {
+        if (currentTime > new TimeSpan(14, 15, 0))
+        {
+            MessageBox.Show("کاتی تۆمارکردن بۆ ئەمڕۆ (شەممە / پێنج شەممە) لە کاتژمێر 14:15 کۆتایی هاتووە.", "ئاگاداری", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            emp_();
+            return; // لێرە دەوەستێت و ناهێڵێت داتا خەزن بکرێت
+        }
+    }
+    // پشکنینی ڕۆژانی (یەکشەممە، دووشەممە، سێشەممە، چوارشەممە) (تا کاتژمێر 15:15)
+    else if (today == DayOfWeek.Sunday || today == DayOfWeek.Monday ||
+             today == DayOfWeek.Tuesday || today == DayOfWeek.Wednesday)
+    {
+        if (currentTime > new TimeSpan(15, 15, 0))
+        {
+            MessageBox.Show("کاتی تۆمارکردن بۆ ئەمڕۆ لە کاتژمێر 15:15 کۆتایی هاتووە.", "ئاگاداری", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            emp_();
+            return; // لێرە دەوەستێت
+        }
+    }
+    // پشکنینی ڕۆژی هەینی (پشوو)
+    else if (today == DayOfWeek.Friday)
+    {
+        MessageBox.Show("ئەمڕۆ هەینییە و پشووی فەرمییە، تۆمارکردن ڕێگەپێنەدراوە.", "ئاگاداری", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        emp_();
+        return;
+    }
+    // ==========================================
+    // لێرەوە کۆدی خەزنکردن و پەیوەندی داتابەیسەکەت دەست پێدەکات
+    // ==========================================
+}
+                  }
+        void dm()
+        {
+            using (SqlConnection conn = new SqlConnection(Traffic_.connectionstring))
+            {
+                conn.Open();
+                using (SqlCommand cmd = new SqlCommand("GetServerDateTime", conn))
+                {
+                    cmd.CommandType = CommandType.StoredProcedure;
+                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            // یەکسانکردنی بەهای dateTimePicker2 بە کات و بەرواری سێرڤەر
+                            dtp_Releasing.Value = Convert.ToDateTime(reader["ServerDateTime"]);
+                            dateTimePicker1.Value = Convert.ToDateTime(reader["ServerDateTime"]);
+
+                        }
+                    }
+                }
+            }
+        }
+
+
+ void fu()
+        {
+
+            try
+            {
+
+                using (SqlConnection bb = new SqlConnection(Traffic_.connectionstring))
+                {
+                    bb.Open();
+                    // MessageBox.Show("سیستمەکە ئامادەیە بۆ كاركردن له‌ سیستم ");
+                    /// button5.Enabled = true;
+                    bb.Close();
+
+                }
+            }
+            catch (Exception)
+            {
+                MessageBox.Show(" کێشەى ئه‌نته‌رنێت هەیه‌ بۆ سێرڤەرەوەچاره‌سه‌ری هێڵی ئه‌نته‌رنیت بكه‌");
+                this.Close();
+            }//asas.Visible = true;
+
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+e.KeyChar = Char.ToUpper(e.KeyChar);
+            Application.CurrentInputLanguage = InputLanguage.FromCulture(new CultureInfo("en-US"));
+            System.Globalization.CultureInfo TypeOfLanguage = new System.Globalization.CultureInfo("en-us");
+            InputLanguage.CurrentInputLanguage = InputLanguage.FromCulture(TypeOfLanguage);
+
+            if (e.KeyChar == ' ' || e.KeyChar == '.')
+            {
+                e.Handled = true; // This prevents the space from being entered
+            } 
+
+
+
+
+
+بڕۆ بۆ فۆرمی ئیف یه‌ك پاش ئه‌وه‌ی له‌ فۆیدی (RN) به‌روار وه‌رگیرا له‌ نیت ه‌وه‌  پاشان له‌ كاتی هه‌ڵبژاردنی  ئه‌نجام له‌ (comboBox4) ئه‌گه‌ر هاتوو ( دەرچووە  یان (ده‌رچووه‌  + تێبینی) ) بوو ئه‌وا یه‌ك ساڵ كه‌م یه‌ك رۆژ واتا 365 رۆژ بیت نرخه‌كه‌ی به‌ڵام ئه‌گه‌ر هاتوو (
+دەرنەچووە یان (دەرنه‌چووە+ تێبینی) ) بوو ئه‌وا نرخه‌كه‌ بكه‌ به‌ 30 ڕۆژ  ئه‌م (dateTimePicker1)  به‌لام پاپه‌ند به‌ به‌ وه‌رگرتنی نرخی به‌روار و كاتی زیندووی ئه‌نته‌رنیت بۆ ئه‌وه‌ی ده‌ستكاری سیستم نه‌كرێت 
+
+
+
+ئه‌م گۆرانكاریانه‌ له‌ فۆرمی تۆماریش به‌هه‌مان شیوه‌ بكه‌  هه‌مان  كۆده‌ 

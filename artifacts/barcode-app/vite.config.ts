@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
+import basicSsl from "@vitejs/plugin-basic-ssl";
 
 const rawPort = process.env.PORT;
 
@@ -29,6 +30,7 @@ if (!basePath) {
 export default defineConfig({
   base: basePath,
   plugins: [
+    basicSsl(),
     react(),
     tailwindcss(),
     runtimeErrorOverlay(),
@@ -70,6 +72,7 @@ export default defineConfig({
       "/api": {
         target: `http://localhost:${process.env.API_PORT ?? 8000}`,
         changeOrigin: true,
+        secure: false,
       },
     },
   },

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import logo from "@/assets/logo.png";
-import { getSession, saveSession, getSqlConfig, trimSqlConfig } from "@/lib/store";
+import { getSession, saveSession } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,56 +26,32 @@ export function LoginPage() {
     e.preventDefault();
     if (!username.trim()) return;
 
-    if (username.trim() === "admin" && password === "Na!@#123") {
-      saveSession({
-        username: "admin",
-        role: "admin",
-        canSearch: true,
-      });
-      navigate("/admin");
-      return;
-    }
-
-    const sqlConfig = trimSqlConfig(getSqlConfig());
-    if (!sqlConfig.server || !sqlConfig.database) {
-      toast({
-        title: "Not Configured",
-        description: "SQL Server is not configured yet. Please ask an administrator.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setLoading(true);
     try {
-      const res = await fetch("/api/users/login", {
+      const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ connection: sqlConfig, username: username.trim(), password: password.trim() }),
+        credentials: "include",
+        body: JSON.stringify({ username: username.trim(), password }),
       });
-      const data = await res.json() as {
+
+      const data = (await res.json()) as {
         success?: boolean;
-        user?: { username: string; permetion: string; on_off: string };
+        user?: { username: string; role: "admin" | "user"; canSearch: boolean };
         error?: string;
       };
 
       if (!res.ok || !data.success || !data.user) {
         toast({
           title: "Login Failed",
-          description: data.error ?? "Invalid username or account disabled",
+          description: data.error ?? "Invalid username or password",
           variant: "destructive",
         });
         return;
       }
 
-      const permetion = (data.user.permetion ?? "").toLowerCase();
-      const isAdmin = permetion === "admin";
-      saveSession({
-        username: data.user.username,
-        role: isAdmin ? "admin" : "user",
-        canSearch: true,
-      });
-      navigate(isAdmin ? "/admin" : "/search");
+      saveSession(data.user);
+      navigate(data.user.role === "admin" ? "/admin" : "/search");
     } catch {
       toast({ title: "Error", description: "Could not reach server", variant: "destructive" });
     } finally {
@@ -88,7 +64,6 @@ export function LoginPage() {
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-6 bg-muted/30">
       <div className="w-full max-w-sm flex flex-col items-center gap-8">
-
         <div className="flex flex-col items-center gap-4 text-center">
           <div className="w-12 h-12 rounded-md overflow-hidden shadow-sm">
             <img src={logo} alt="Nazhad inspection System" className="w-full h-full object-cover" />
@@ -127,7 +102,6 @@ export function LoginPage() {
             {loading ? "Checking..." : "LOGIN"}
           </Button>
         </form>
-
       </div>
     </div>
   );

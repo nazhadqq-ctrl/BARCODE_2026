@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
-import { getSession } from "@/lib/store";
+import { getSession, clearSession } from "@/lib/store";
 import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logo from "@/assets/logo.png";
@@ -56,8 +56,8 @@ export function Layout({ children }: LayoutProps) {
               variant="outline"
               size="icon"
               className="text-muted-foreground hover:bg-muted hover:text-foreground"
-              onClick={() => {
-                localStorage.removeItem("ba_session");
+              onClick={async () => {
+                await clearSession();
                 navigate("/login");
               }}
             >

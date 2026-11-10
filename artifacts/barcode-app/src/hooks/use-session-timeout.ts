@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from "react";
-import { getSession, saveSession, getSessionTimeoutSettings } from "@/lib/store";
+import { getSession, clearSession, getSessionTimeoutSettings } from "@/lib/store";
 
 const ACTIVITY_EVENTS = ["mousemove", "mousedown", "keydown", "touchstart", "scroll", "click"];
 const WARNING_SECONDS = 60;
@@ -20,10 +20,10 @@ export function useSessionTimeout(onLogout: () => void) {
     countdownRef.current = null;
   }, []);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
     stopAll();
     setShowWarning(false);
-    saveSession(null);
+    await clearSession();
     onLogout();
   }, [stopAll, onLogout]);
 

@@ -1,11 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "wouter";
-import { getSession, getSqlConfig, trimSqlConfig } from "@/lib/store";
+import { getSession } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useRunBarcodeQuery, useTestSqlConnection } from "@workspace/api-client-react";
 import { ScannerModal } from "@/components/scanner-modal";
-import { Search, ScanLine, AlertTriangle, CheckCircle, RefreshCw } from "lucide-react";
+import { Search, ScanLine, AlertTriangle, RefreshCw } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 
@@ -16,29 +15,26 @@ export function SearchPage() {
 
   const [barcode, setBarcode] = useState("");
   const [scannerOpen, setScannerOpen] = useState(false);
-  const sqlConfig = trimSqlConfig(getSqlConfig());
-
-  const runQuery = useRunBarcodeQuery();
-  const testConn = useTestSqlConnection();
+  const [loading, setLoading] = useState(false);
+  const [queryResult, setQueryResult] = useState<{ found: boolean; rows: Record<string, unknown>[] } | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const [dbStatus, setDbStatus] = useState<"unknown" | "checking" | "connected" | "offline">("unknown");
   const didMount = useRef(false);
 
-  const checkDb = useCallback(() => {
-    const cleanCfg = trimSqlConfig(getSqlConfig());
-    if (!cleanCfg.server || !cleanCfg.database) { 
-      setDbStatus("offline"); 
-      return; 
-    }
+  const checkDb = useCallback(async () => {
     setDbStatus("checking");
-    testConn.mutate(
-      { data: { ...cleanCfg, port: cleanCfg.port ?? 1433 } },
-      {
-        onSuccess: (d) => setDbStatus(d.success ? "connected" : "offline"),
-        onError: () => setDbStatus("offline"),
-      },
-    );
-  }, [testConn]);
+    try {
+      const res = await fetch("/api/healthz", { credentials: "include" });
+      if (res.ok) {
+        setDbStatus("connected");
+      } else {
+        setDbStatus("offline");
+      }
+    } catch {
+      setDbStatus("offline");
+    }
+  }, []);
 
   useEffect(() => {
     if (didMount.current) return;
@@ -64,26 +60,45 @@ export function SearchPage() {
     );
   }
 
-  const handleSearch = (e?: React.FormEvent, explicitBarcode?: string) => {
+  const handleSearch = async (e?: React.FormEvent, explicitBarcode?: string) => {
     if (e) e.preventDefault();
     const code = explicitBarcode || barcode;
-    if (!code) return;
+    if (!code.trim()) return;
 
-    if (!sqlConfig.server || !sqlConfig.database) {
-      toast({
-        title: "Configuration Missing",
-        description: "SQL Server is not configured. Please contact an administrator.",
-        variant: "destructive",
+    setLoading(true);
+    setErrorMsg(null);
+    setQueryResult(null);
+
+    try {
+      const res = await fetch("/api/sql/query", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ barcode: code.trim() }),
       });
-      return;
-    }
 
-    runQuery.mutate({
-      data: {
-        connection: sqlConfig,
-        barcode: code.trim()
+      if (res.status === 401) {
+        toast({
+          title: "Session Expired",
+          description: "Please log in again.",
+          variant: "destructive",
+        });
+        navigate("/login");
+        return;
       }
-    });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setErrorMsg(data.error || "Lookup failed");
+        return;
+      }
+
+      setQueryResult(data);
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : "Could not reach server");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDecode = (text: string) => {
@@ -106,16 +121,28 @@ export function SearchPage() {
           {dbStatus === "checking" ? (
             <RefreshCw className="w-4 h-4 text-yellow-500 animate-spin" />
           ) : (
-            <div className={`w-3 h-3 rounded-full ${dbStatus === "connected" ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]"}`} />
+            <div
+              className={`w-3 h-3 rounded-full ${
+                dbStatus === "connected"
+                  ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"
+                  : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]"
+              }`}
+            />
           )}
           <span className="font-medium text-muted-foreground">
-            {dbStatus === "checking" ? "Checking connection..." : dbStatus === "connected" ? "Server connected" : "Server problem or not configured"}
+            {dbStatus === "checking"
+              ? "Checking connection..."
+              : dbStatus === "connected"
+              ? "Server connected"
+              : "Server problem or not configured"}
           </span>
         </div>
 
         <div className="relative flex items-center my-2">
           <div className="flex-grow border-t border-border"></div>
-          <span className="flex-shrink-0 mx-4 text-muted-foreground text-sm font-medium uppercase tracking-wider">or manually enter</span>
+          <span className="flex-shrink-0 mx-4 text-muted-foreground text-sm font-medium uppercase tracking-wider">
+            or manually enter
+          </span>
           <div className="flex-grow border-t border-border"></div>
         </div>
 
@@ -126,34 +153,30 @@ export function SearchPage() {
             placeholder="Enter barcode..."
             className="h-10 text-sm bg-background"
           />
-          <Button type="submit" size="icon" className="h-10 w-10 shrink-0" disabled={runQuery.isPending}>
+          <Button type="submit" size="icon" className="h-10 w-10 shrink-0" disabled={loading}>
             <Search className="w-5 h-5" />
           </Button>
         </form>
       </div>
 
       <div className="flex-1 flex flex-col gap-4">
-        {runQuery.isPending && (
-          <div className="flex-1 flex items-center justify-center">
+        {loading && (
+          <div className="flex-1 flex items-center justify-center py-8">
             <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
           </div>
         )}
 
-        {runQuery.isError && (
+        {errorMsg && (
           <Card className="border-destructive bg-destructive/10">
             <CardContent className="p-6 flex flex-col items-center justify-center text-center gap-2">
               <AlertTriangle className="w-10 h-10 text-destructive" />
               <p className="font-medium text-destructive">Lookup failed</p>
-              <p className="text-sm text-destructive/80 break-words">
-                {runQuery.error instanceof Error
-                  ? runQuery.error.message.replace(/^HTTP \d+ [^:]+:\s*/, "")
-                  : "Unknown error"}
-              </p>
+              <p className="text-sm text-destructive/80 break-words">{errorMsg}</p>
             </CardContent>
           </Card>
         )}
 
-        {runQuery.isSuccess && !runQuery.data.found && (
+        {queryResult && !queryResult.found && (
           <Card className="bg-muted border border-border">
             <CardContent className="p-8 text-center text-muted-foreground font-medium text-lg">
               This does not exist
@@ -161,31 +184,34 @@ export function SearchPage() {
           </Card>
         )}
 
-        {runQuery.isSuccess && runQuery.data.found && runQuery.data.rows.map((row: any, index: number) => (
-          <Card key={index} className="overflow-hidden border shadow-sm">
-            <CardContent className="p-0">
-              <div className="bg-secondary text-secondary-foreground p-3 font-bold flex justify-between items-center">
-                <span>Result {index + 1}</span>
-                <span className="text-primary">{barcode}</span>
-              </div>
-              <div className="p-4 flex flex-col gap-3">
-                {Object.entries(row).map(([key, value]) => (
-                  <div key={key} className="flex flex-col border-b border-border/50 pb-2 last:border-0 last:pb-0">
-                    <span className="text-sm text-muted-foreground uppercase tracking-wider font-semibold">{key}</span>
-                    <span className="text-base font-medium break-words">{String(value)}</span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+        {queryResult &&
+          queryResult.found &&
+          queryResult.rows.map((row: any, index: number) => (
+            <Card key={index} className="overflow-hidden border shadow-sm">
+              <CardContent className="p-0">
+                <div className="bg-secondary text-secondary-foreground p-3 font-bold flex justify-between items-center">
+                  <span>Result {index + 1}</span>
+                  <span className="text-primary">{barcode}</span>
+                </div>
+                <div className="p-4 flex flex-col gap-3">
+                  {Object.entries(row).map(([key, value]) => (
+                    <div
+                      key={key}
+                      className="flex flex-col border-b border-border/50 pb-2 last:border-0 last:pb-0"
+                    >
+                      <span className="text-sm text-muted-foreground uppercase tracking-wider font-semibold">
+                        {key}
+                      </span>
+                      <span className="text-base font-medium break-words">{String(value)}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
       </div>
 
-      <ScannerModal
-        open={scannerOpen}
-        onOpenChange={setScannerOpen}
-        onDecode={handleDecode}
-      />
+      <ScannerModal open={scannerOpen} onOpenChange={setScannerOpen} onDecode={handleDecode} />
     </div>
   );
 }

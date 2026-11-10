@@ -22,13 +22,13 @@ export const HealthCheckResponse = zod.object({
  * @summary Test SQL Server connection
  */
 export const TestSqlConnectionBody = zod.object({
-  "server": zod.string().describe('SQL Server IP or hostname'),
-  "database": zod.string().describe('Database name'),
-  "user": zod.string().describe('SQL username'),
-  "password": zod.string().describe('SQL password'),
+  "server": zod.string().describe('SQL Server IP or hostname').optional(),
+  "database": zod.string().describe('Database name').optional(),
+  "user": zod.string().describe('SQL username').optional(),
+  "password": zod.string().describe('SQL password').optional(),
   "port": zod.number().nullish().describe('SQL Server port (default 1433)'),
   "windowsAuth": zod.boolean().nullish().describe('Use Windows Authentication (trusted connection) instead of SQL login')
-})
+}).optional()
 
 export const TestSqlConnectionResponse = zod.object({
   "success": zod.boolean(),
@@ -42,13 +42,13 @@ export const TestSqlConnectionResponse = zod.object({
  */
 export const RunBarcodeQueryBody = zod.object({
   "connection": zod.object({
-  "server": zod.string().describe('SQL Server IP or hostname'),
-  "database": zod.string().describe('Database name'),
-  "user": zod.string().describe('SQL username'),
-  "password": zod.string().describe('SQL password'),
+  "server": zod.string().describe('SQL Server IP or hostname').optional(),
+  "database": zod.string().describe('Database name').optional(),
+  "user": zod.string().describe('SQL username').optional(),
+  "password": zod.string().describe('SQL password').optional(),
   "port": zod.number().nullish().describe('SQL Server port (default 1433)'),
   "windowsAuth": zod.boolean().nullish().describe('Use Windows Authentication (trusted connection) instead of SQL login')
-}),
+}).optional(),
   "barcode": zod.string().describe('Barcode value to search for')
 })
 

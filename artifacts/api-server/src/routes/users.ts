@@ -1,212 +1,196 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response } from "express";
 import * as mssql from "mssql";
+import { requireAdmin } from "../middlewares/auth";
+import { getPool, isConfigured } from "../lib/db";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
-function buildConfig(conn: {
-  server: string;
-  database: string;
-  user?: string;
-  password?: string;
-  port?: number | null;
-  windowsAuth?: boolean | null;
-}): mssql.config {
-  const useWindowsAuth = conn.windowsAuth === true;
-  return {
-    server: conn.server,
-    database: conn.database,
-    user: useWindowsAuth ? undefined : conn.user,
-    password: useWindowsAuth ? undefined : conn.password,
-    port: conn.port ?? 1433,
-    domain: useWindowsAuth ? conn.server : undefined,
-    options: {
-      encrypt: false,
-      trustServerCertificate: true,
-      connectTimeout: 10000,
-      trustedConnection: useWindowsAuth,
-    },
-  };
+// Protect all user management routes with admin-only requirement
+router.use(requireAdmin);
+
+async function checkDbConfigured(res: Response): Promise<boolean> {
+  if (!isConfigured()) {
+    res.status(503).json({ error: "SQL Server is not configured" });
+    return false;
+  }
+  return true;
 }
 
-function isConn(v: unknown): v is { server: string; database: string } {
-  if (!v || typeof v !== "object") return false;
-  const o = v as Record<string, unknown>;
-  return typeof o["server"] === "string" && typeof o["database"] === "string";
+// 1. List Users
+async function handleListUsers(_req: Request, res: Response): Promise<void> {
+  if (!(await checkDbConfigured(res))) return;
+
+  try {
+    const pool = await getPool();
+    const result = await pool.request().query(
+      "SELECT id, User_, permetion, on_off FROM USERS ORDER BY id ASC"
+    );
+
+    res.json({ success: true, users: result.recordset });
+  } catch (err: unknown) {
+    logger.error({ err }, "Failed to list users");
+    res.status(500).json({ error: "Failed to retrieve user list" });
+  }
 }
 
-router.post("/users/login", async (req, res) => {
-  const { connection, username, password } = req.body as { connection: unknown; username: unknown; password: unknown };
-  if (!isConn(connection) || typeof username !== "string" || !username.trim()) {
-    res.status(400).json({ error: "Invalid request" });
-    return;
-  }
+router.get("/users/list", handleListUsers);
+router.post("/users/list", handleListUsers); // backwards compatibility
 
-  let pool: mssql.ConnectionPool | null = null;
-  try {
-    pool = await mssql.connect(buildConfig(connection as Parameters<typeof buildConfig>[0]));
+// 2. Add User
+router.post("/users/add", async (req: Request, res: Response): Promise<void> => {
+  if (!(await checkDbConfigured(res))) return;
 
-    const result = await pool
-      .request()
-      .input("username", mssql.NVarChar, username.trim())
-      .query("SELECT id, User_, password, permetion, on_off FROM USERS WHERE User_ = @username");
-
-    const rows = result.recordset as Array<{
-      id: number;
-      User_: string;
-      password: string | null;
-      permetion: string | null;
-      on_off: string | null;
-    }>;
-
-    if (rows.length === 0) {
-      res.status(401).json({ error: "Invalid username or password" });
-      return;
-    }
-
-    const user = rows[0];
-
-    if ((user.password ?? "") !== (typeof password === "string" ? password : "")) {
-      res.status(401).json({ error: "Invalid username or password" });
-      return;
-    }
-
-    if ((user.on_off ?? "").toLowerCase() !== "yes") {
-      res.status(403).json({ error: "Account is disabled" });
-      return;
-    }
-
-    res.json({
-      success: true,
-      user: {
-        id: user.id,
-        username: user.User_,
-        permetion: user.permetion ?? "",
-        on_off: user.on_off ?? "",
-      },
-    });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    req.log.error({ err }, "Users login failed");
-    res.status(500).json({ error: message });
-  } finally {
-    if (pool) { try { await pool.close(); } catch {} }
-  }
-});
-
-router.post("/users/list", async (req, res) => {
-  const { connection } = req.body as { connection: unknown };
-  if (!isConn(connection)) {
-    res.status(400).json({ error: "Invalid request" });
-    return;
-  }
-
-  let pool: mssql.ConnectionPool | null = null;
-  try {
-    pool = await mssql.connect(buildConfig(connection as Parameters<typeof buildConfig>[0]));
-    const result = await pool
-      .request()
-      .query("SELECT id, User_, permetion, on_off FROM USERS ORDER BY id");
-    res.json({ users: result.recordset });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    req.log.error({ err }, "Users list failed");
-    res.status(500).json({ error: message });
-  } finally {
-    if (pool) { try { await pool.close(); } catch {} }
-  }
-});
-
-router.post("/users/add", async (req, res) => {
-  const { connection, user } = req.body as {
-    connection: unknown;
-    user: unknown;
+  const { user } = req.body as {
+    user?: {
+      User_?: unknown;
+      password?: unknown;
+      permetion?: unknown;
+      on_off?: unknown;
+    };
   };
-  if (!isConn(connection) || !user || typeof user !== "object") {
-    res.status(400).json({ error: "Invalid request" });
-    return;
-  }
-  const u = user as Record<string, unknown>;
-  if (typeof u["User_"] !== "string" || !u["User_"].trim()) {
-    res.status(400).json({ error: "User_ is required" });
+
+  if (!user || typeof user.User_ !== "string" || !user.User_.trim()) {
+    res.status(400).json({ error: "Username is required" });
     return;
   }
 
-  let pool: mssql.ConnectionPool | null = null;
+  const cleanUser = user.User_.trim();
+  const cleanPass = typeof user.password === "string" ? user.password.trim() : "";
+  const cleanPerm = typeof user.permetion === "string" ? user.permetion.trim() : "user";
+  const cleanOnOff = typeof user.on_off === "string" ? user.on_off.trim() : "yes";
+
   try {
-    pool = await mssql.connect(buildConfig(connection as Parameters<typeof buildConfig>[0]));
+    const pool = await getPool();
+
+    // Check if user already exists
+    const existing = await pool
+      .request()
+      .input("username", mssql.NVarChar, cleanUser)
+      .query("SELECT id FROM USERS WHERE User_ = @username");
+
+    if (existing.recordset.length > 0) {
+      res.status(400).json({ error: `User "${cleanUser}" already exists` });
+      return;
+    }
+
     await pool
       .request()
-      .input("User_", mssql.NVarChar, String(u["User_"]).trim())
-      .input("password", mssql.NVarChar, String(u["password"] ?? ""))
-      .input("permetion", mssql.NVarChar, String(u["permetion"] ?? ""))
-      .input("on_off", mssql.NVarChar, String(u["on_off"] ?? "no"))
-      .query("INSERT INTO USERS (User_, password, permetion, on_off) VALUES (@User_, @password, @permetion, @on_off)");
-    res.json({ success: true });
-  } catch (err) {
+      .input("username", mssql.NVarChar, cleanUser)
+      .input("password", mssql.NVarChar, cleanPass)
+      .input("permetion", mssql.NVarChar, cleanPerm)
+      .input("on_off", mssql.NVarChar, cleanOnOff)
+      .query(
+        "INSERT INTO USERS (User_, password, permetion, on_off) VALUES (@username, @password, @permetion, @on_off)"
+      );
+
+    logger.info({ username: cleanUser }, "User added");
+    res.json({ success: true, message: `User "${cleanUser}" added successfully` });
+  } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    req.log.error({ err }, "Users add failed");
+    logger.error({ err }, "Failed to add user");
     res.status(500).json({ error: message });
-  } finally {
-    if (pool) { try { await pool.close(); } catch {} }
   }
 });
 
-router.put("/users/:id", async (req, res) => {
-  const id = parseInt(req.params.id, 10);
-  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+// 3. Update User
+router.put("/users/:id", async (req: Request, res: Response): Promise<void> => {
+  if (!(await checkDbConfigured(res))) return;
 
-  const { connection, user } = req.body as { connection: unknown; user: unknown };
-  if (!isConn(connection) || !user || typeof user !== "object") {
-    res.status(400).json({ error: "Invalid request" });
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id) || id <= 0) {
+    res.status(400).json({ error: "Invalid user ID" });
     return;
   }
-  const u = user as Record<string, unknown>;
 
-  let pool: mssql.ConnectionPool | null = null;
+  const { user } = req.body as {
+    user?: {
+      User_?: unknown;
+      password?: unknown;
+      permetion?: unknown;
+      on_off?: unknown;
+    };
+  };
+
+  if (!user) {
+    res.status(400).json({ error: "User payload is required" });
+    return;
+  }
+
   try {
-    pool = await mssql.connect(buildConfig(connection as Parameters<typeof buildConfig>[0]));
+    const pool = await getPool();
+
+    const cleanUser = typeof user.User_ === "string" ? user.User_.trim() : undefined;
+    const cleanPass = typeof user.password === "string" ? user.password.trim() : undefined;
+    const cleanPerm = typeof user.permetion === "string" ? user.permetion.trim() : undefined;
+    const cleanOnOff = typeof user.on_off === "string" ? user.on_off.trim() : undefined;
+
+    // Check user exists
+    const existing = await pool
+      .request()
+      .input("id", mssql.Int, id)
+      .query("SELECT id, User_, password, permetion, on_off FROM USERS WHERE id = @id");
+
+    if (existing.recordset.length === 0) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    const current = existing.recordset[0];
+    const finalUser = cleanUser ?? current.User_;
+    const finalPass = cleanPass ?? current.password;
+    const finalPerm = cleanPerm ?? current.permetion;
+    const finalOnOff = cleanOnOff ?? current.on_off;
+
     await pool
       .request()
       .input("id", mssql.Int, id)
-      .input("User_", mssql.NVarChar, String(u["User_"] ?? "").trim())
-      .input("password", mssql.NVarChar, String(u["password"] ?? ""))
-      .input("permetion", mssql.NVarChar, String(u["permetion"] ?? ""))
-      .input("on_off", mssql.NVarChar, String(u["on_off"] ?? "no"))
-      .query("UPDATE USERS SET User_ = @User_, password = @password, permetion = @permetion, on_off = @on_off WHERE id = @id");
-    res.json({ success: true });
-  } catch (err) {
+      .input("username", mssql.NVarChar, finalUser)
+      .input("password", mssql.NVarChar, finalPass)
+      .input("permetion", mssql.NVarChar, finalPerm)
+      .input("on_off", mssql.NVarChar, finalOnOff)
+      .query(
+        "UPDATE USERS SET User_ = @username, password = @password, permetion = @permetion, on_off = @on_off WHERE id = @id"
+      );
+
+    logger.info({ id, username: finalUser }, "User updated");
+    res.json({ success: true, message: `User updated successfully` });
+  } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    req.log.error({ err }, "Users update failed");
+    logger.error({ err, id }, "Failed to update user");
     res.status(500).json({ error: message });
-  } finally {
-    if (pool) { try { await pool.close(); } catch {} }
   }
 });
 
-router.delete("/users/:id", async (req, res) => {
-  const id = parseInt(req.params.id, 10);
-  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+// 4. Delete User
+router.delete("/users/:id", async (req: Request, res: Response): Promise<void> => {
+  if (!(await checkDbConfigured(res))) return;
 
-  const { connection } = req.body as { connection: unknown };
-  if (!isConn(connection)) {
-    res.status(400).json({ error: "Invalid request" });
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id) || id <= 0) {
+    res.status(400).json({ error: "Invalid user ID" });
     return;
   }
 
-  let pool: mssql.ConnectionPool | null = null;
   try {
-    pool = await mssql.connect(buildConfig(connection as Parameters<typeof buildConfig>[0]));
-    await pool
+    const pool = await getPool();
+
+    const result = await pool
       .request()
       .input("id", mssql.Int, id)
       .query("DELETE FROM USERS WHERE id = @id");
-    res.json({ success: true });
-  } catch (err) {
+
+    if (result.rowsAffected[0] === 0) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    logger.info({ id }, "User deleted");
+    res.json({ success: true, message: "User deleted successfully" });
+  } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    req.log.error({ err }, "Users delete failed");
+    logger.error({ err, id }, "Failed to delete user");
     res.status(500).json({ error: message });
-  } finally {
-    if (pool) { try { await pool.close(); } catch {} }
   }
 });
 
