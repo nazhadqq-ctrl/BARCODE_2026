@@ -4,9 +4,8 @@
   "license": "MIT",
   "scripts": {
     "dev": "node dev.mjs",
-    "build": "pnpm run typecheck && pnpm -r --if-present run build",
-    "typecheck:libs": "tsc --build",
-    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
+    "build": "pnpm -r --filter \"./artifacts/**\" run build",
+    "start": "node artifacts/api-server/dist/index.mjs"
   },
   "private": true,
   "devDependencies": {

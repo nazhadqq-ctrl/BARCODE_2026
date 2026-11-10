@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: barcode-scanner-app
+    env: node
+    plan: free
+    buildCommand: corepack enable && pnpm install && pnpm run build
+    startCommand: node artifacts/api-server/dist/index.mjs
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SQL_PORT
+        value: 1433
+      - key: SQL_WINDOWS_AUTH
+        value: "false"
+      - key: JWT_EXPIRES_IN
+        value: 8h

@@ -39,13 +39,15 @@ app.use(
   }),
 );
 
-// CORS configuration: strictly allow local and LAN addresses with credentials
+// CORS configuration: strictly allow local, LAN, and configured cloud origins
 const allowedOrigins = [
   "https://localhost:5000",
   "https://127.0.0.1:5000",
   "http://localhost:5000",
   "http://127.0.0.1:5000",
-  process.env.CORS_ORIGIN,
+  ...(process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(",").map((s) => s.trim())
+    : []),
 ].filter(Boolean) as string[];
 
 app.use(
@@ -55,6 +57,10 @@ app.use(
       if (
         !origin ||
         allowedOrigins.includes(origin) ||
+        origin.endsWith(".onrender.com") ||
+        origin.endsWith(".railway.app") ||
+        origin.endsWith(".up.railway.app") ||
+        origin.endsWith(".vercel.app") ||
         origin.startsWith("http://192.168.") ||
         origin.startsWith("https://192.168.") ||
         origin.startsWith("http://10.") ||
