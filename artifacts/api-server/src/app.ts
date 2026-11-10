@@ -39,37 +39,11 @@ app.use(
   }),
 );
 
-// CORS configuration: strictly allow local, LAN, and configured cloud origins
-const allowedOrigins = [
-  "https://localhost:5000",
-  "https://127.0.0.1:5000",
-  "http://localhost:5000",
-  "http://127.0.0.1:5000",
-  ...(process.env.CORS_ORIGIN
-    ? process.env.CORS_ORIGIN.split(",").map((s) => s.trim())
-    : []),
-].filter(Boolean) as string[];
-
 app.use(
   cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile webview, curl, or same-origin)
-      if (
-        !origin ||
-        allowedOrigins.includes(origin) ||
-        origin.endsWith(".onrender.com") ||
-        origin.endsWith(".railway.app") ||
-        origin.endsWith(".up.railway.app") ||
-        origin.endsWith(".vercel.app") ||
-        origin.startsWith("http://192.168.") ||
-        origin.startsWith("https://192.168.") ||
-        origin.startsWith("http://10.") ||
-        origin.startsWith("https://10.")
-      ) {
-        callback(null, true);
-      } else {
-        callback(new Error("Blocked by CORS policy: Origin not allowed"));
-      }
+    origin: (_origin, callback) => {
+      // Allow all origins with credentials reflection
+      callback(null, true);
     },
     credentials: true,
   }),
