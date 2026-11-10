@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "wouter";
 import { getSession, getSqlConfig, trimSqlConfig } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useRunBarcodeQuery } from "@workspace/api-client-react";
+import { useRunBarcodeQuery, useTestSqlConnection } from "@workspace/api-client-react";
 import { ScannerModal } from "@/components/scanner-modal";
-import { Search, ScanLine, AlertTriangle } from "lucide-react";
+import { Search, ScanLine, AlertTriangle, CheckCircle, RefreshCw } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 
@@ -19,6 +19,32 @@ export function SearchPage() {
   const sqlConfig = trimSqlConfig(getSqlConfig());
 
   const runQuery = useRunBarcodeQuery();
+  const testConn = useTestSqlConnection();
+
+  const [dbStatus, setDbStatus] = useState<"unknown" | "checking" | "connected" | "offline">("unknown");
+  const didMount = useRef(false);
+
+  const checkDb = useCallback(() => {
+    const cleanCfg = trimSqlConfig(getSqlConfig());
+    if (!cleanCfg.server || !cleanCfg.database) { 
+      setDbStatus("offline"); 
+      return; 
+    }
+    setDbStatus("checking");
+    testConn.mutate(
+      { data: { ...cleanCfg, port: cleanCfg.port ?? 1433 } },
+      {
+        onSuccess: (d) => setDbStatus(d.success ? "connected" : "offline"),
+        onError: () => setDbStatus("offline"),
+      },
+    );
+  }, [testConn]);
+
+  useEffect(() => {
+    if (didMount.current) return;
+    didMount.current = true;
+    checkDb();
+  }, [checkDb]);
 
   if (!session) {
     navigate("/login");
@@ -75,6 +101,17 @@ export function SearchPage() {
           <ScanLine className="w-6 h-6" />
           SCAN BARCODE
         </Button>
+
+        <div className="flex items-center justify-center gap-2 text-sm mt-[-4px]">
+          {dbStatus === "checking" ? (
+            <RefreshCw className="w-4 h-4 text-yellow-500 animate-spin" />
+          ) : (
+            <div className={`w-3 h-3 rounded-full ${dbStatus === "connected" ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]"}`} />
+          )}
+          <span className="font-medium text-muted-foreground">
+            {dbStatus === "checking" ? "Checking connection..." : dbStatus === "connected" ? "Server connected" : "Server problem or not configured"}
+          </span>
+        </div>
 
         <div className="relative flex items-center my-2">
           <div className="flex-grow border-t border-border"></div>

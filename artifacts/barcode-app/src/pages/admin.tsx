@@ -116,47 +116,13 @@ function BlueBtn({ type = "button", onClick, disabled, children }: {
 
 type DbStatus = "unknown" | "checking" | "connected" | "offline";
 
-function SuperAdminLogin({ onLogin }: { onLogin: () => void }) {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (username === "Nazhad" && password === "Nn!@#123") {
-      onLogin();
-    } else {
-      setError("Invalid username or password");
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4 max-w-sm mx-auto my-8 p-6 border border-border rounded-lg bg-background shadow-sm">
-      <div className="flex flex-col items-center gap-2 mb-2">
-        <ShieldAlert className="w-8 h-8 text-primary" />
-        <h2 className="text-xl font-bold text-center">Authentication Required</h2>
-        <p className="text-sm text-muted-foreground text-center">Enter the master credentials to access settings.</p>
-      </div>
-      {error && <div className="text-destructive text-sm font-medium text-center bg-destructive/10 py-2 rounded-md">{error}</div>}
-      <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium">Username</label>
-        <Input placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} />
-      </div>
-      <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium">Password</label>
-        <Input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} />
-      </div>
-      <Button type="submit" className="mt-2 w-full">Login</Button>
-    </form>
-  );
-}
 
 export function AdminPage() {
   const [, navigate] = useLocation();
   const session = getSession();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<Tab>("search");
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   // ── DB connection status (shared across tab list dot + SqlTab banner) ──
   const [dbStatus, setDbStatus] = useState<DbStatus>("unknown");
@@ -183,6 +149,14 @@ export function AdminPage() {
     didMount.current = true;
     checkDb();
   }, [checkDb]);
+
+  useEffect(() => {
+    if (!session || session.role !== "admin") {
+      navigate("/login");
+    }
+  }, [session, navigate]);
+
+  if (!session || session.role !== "admin") return null;
 
   const tabs: { id: Tab; label: string; icon: React.FC<{ className?: string }> }[] = [
     { id: "search", label: "Search", icon: Search },
@@ -249,16 +223,12 @@ export function AdminPage() {
           ? <SearchTab />
           : (
             <div className="rounded-lg p-6 sm:p-8 bg-card" >
-              {!isSuperAdmin ? (
-                <SuperAdminLogin onLogin={() => setIsSuperAdmin(true)} />
-              ) : (
-                <>
-                  {activeTab === "sql" && <SqlTab toast={toast} testConn={testConn} dbStatus={dbStatus} onRecheck={checkDb} />}
-                  {activeTab === "admin" && <AdminTab session={session} />}
-                  {activeTab === "users" && <UsersTab toast={toast} session={session} />}
-                  {activeTab === "scanner" && <ScannerTab toast={toast} />}
-                </>
-              )}
+              <>
+                {activeTab === "sql" && <SqlTab toast={toast} testConn={testConn} dbStatus={dbStatus} onRecheck={checkDb} />}
+                {activeTab === "admin" && <AdminTab session={session} />}
+                {activeTab === "users" && <UsersTab toast={toast} session={session} />}
+                {activeTab === "scanner" && <ScannerTab toast={toast} />}
+              </>
             </div>
           )
         }

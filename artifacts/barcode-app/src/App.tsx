@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
+import { getSession } from "@/lib/store";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -22,11 +24,28 @@ const queryClient = new QueryClient({
   },
 });
 
+function RootRedirect() {
+  const session = getSession();
+  const [, navigate] = useLocation();
+  
+  useEffect(() => {
+    if (!session) {
+      navigate("/login");
+    } else if (session.role === "admin") {
+      navigate("/admin");
+    } else {
+      navigate("/search");
+    }
+  }, [session, navigate]);
+  
+  return null;
+}
+
 function Router() {
   return (
     <Switch>
       <Route path="/">
-        <AdminPage />
+        <RootRedirect />
       </Route>
       <Route path="/login">
         <Layout><LoginPage /></Layout>
